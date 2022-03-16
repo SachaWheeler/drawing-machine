@@ -49,9 +49,9 @@ bool button_change = false;
 String lcd_status;
 
 /*
-unsigned long startMillis;
-unsigned long currentMillis;
-const unsigned long period = 100;  // milliseconds
+  unsigned long startMillis;
+  unsigned long currentMillis;
+  const unsigned long period = 100;  // milliseconds
 */
 
 const bool ON = LOW;
@@ -91,6 +91,16 @@ void setup() {
 void loop() {
 
   start_button = digitalRead(START_BUTTON);
+  if (start_button == ON && motorsOn == true) {
+    // the motors are running
+    /*
+       This is where we might adjust the speeds of
+       Arm1Speed and Arm2Speed according to:
+          waveforms (none, square, saw, trianlge, sine)
+          frequency
+          amplitude
+    */
+  }
 
   if (start_button == ON && motorsOn == false) { // run the motors
     Serial.println("run");
