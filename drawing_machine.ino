@@ -179,6 +179,7 @@ void loop() {
       }
       motorsOn = false;
     }
+
     // set the speeds
     button_1_state = digitalRead(BUTTON_1);
     button_2_state = digitalRead(BUTTON_2);
