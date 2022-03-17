@@ -29,7 +29,7 @@ int Arm2Speed = 100;
 const int MAX_PLATTER_SPEED = 255;
 const int MAX_ARM1_SPEED = 255;
 const int MAX_ARM2_SPEED = 255;
-const int MOTOR_MIN = 50;
+const int MOTOR_MIN = 55;
 
 bool motorsOn = false;
 int start_button;
@@ -57,11 +57,15 @@ const bool OFF = HIGH;
 
 const bool RUN_MOTORS = true; // change this to false for testing without motors
 
+String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
+  return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
+}
+
 void setup() {
   // LCD
   lcd.begin(16, 2);
   // Print a message to the LCD.
-  lcd_status = "P:" + String(PlatterSpeed) + ",A:" + Arm1Speed + ",B:" + Arm2Speed;
+  lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
   lcd.setCursor(0, 0);
   lcd.print(lcd_status);
 
@@ -90,7 +94,7 @@ void loop() {
 
   start_button = digitalRead(START_BUTTON);
   if (start_button == ON && motorsOn == true) {
-    // the motors are running
+    // the motors are running and might need adjustment
     /*
        This is where we might adjust the speeds of
        Arm1Speed and Arm2Speed according to:
@@ -113,11 +117,11 @@ void loop() {
            in the first half of frequency? ramp up until MAX_AMP
            then ramp down until MIN_AMP
        sine:
-           plt the  sine of currentMillis - startMillis
+           plt the sine of currentMillis - startMillis
     */
   }
 
-  if (start_button == ON && motorsOn == false) { // run the motors
+  if (start_button == ON && motorsOn == false) { // start the motors
     Serial.println("run");
 
     if (RUN_MOTORS == true) { // start them
@@ -152,21 +156,21 @@ void loop() {
     button_8_state = digitalRead(BUTTON_8);
     button_9_state = digitalRead(BUTTON_9);
 
-    if (button_1_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // platter speed up
-      PlatterSpeed += 1;
-      button_change = true;
-    }
-    if (button_2_state == ON && PlatterSpeed > MOTOR_MIN) { // platter speed down
-      PlatterSpeed -= 1;
-      button_change = true;
-    }
-
-    if (button_4_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // Arm1 speed up
+    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // platter speed up
       Arm1Speed += 1;
       button_change = true;
     }
-    if (button_5_state == ON && Arm1Speed > MOTOR_MIN) { // Arm1Speed speed down
+    if (button_2_state == ON && Arm1Speed > MOTOR_MIN) { // platter speed down
       Arm1Speed -= 1;
+      button_change = true;
+    }
+
+    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // Arm1 speed up
+      PlatterSpeed += 1;
+      button_change = true;
+    }
+    if (button_5_state == ON && PlatterSpeed > MOTOR_MIN) { // Arm1Speed speed down
+      PlatterSpeed -= 1;
       button_change = true;
     }
 
@@ -179,24 +183,30 @@ void loop() {
       button_change = true;
     }
 
+    // advance Arms
     if (button_3_state == ON) {
-      analogWrite(Arm1Pin, Arm1Speed);
+      int advance_speed = int(Arm1Speed / 2);
+      if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
+      analogWrite(Arm1Pin, advance_speed);
       while (digitalRead(BUTTON_3) == ON) { // advance Arm1
-        delay(100);
+        delay(50);
       }
       analogWrite(Arm1Pin, 0);
     }
 
     if (button_9_state == ON) {
-      analogWrite(Arm2Pin, Arm2Speed);
+      int advance_speed = int(Arm1Speed / 2);
+      if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
+      analogWrite(Arm2Pin, advance_speed);
       while (digitalRead(BUTTON_9) == ON) { // advance Arm2
-        delay(100);
+        delay(50);
       }
       analogWrite(Arm2Pin, 0);
     }
 
+    // change LCD status
     if (button_change == true) {
-      lcd_status = "P:" + String(PlatterSpeed) + " A:" + Arm1Speed + ",B:" + Arm2Speed + "   ";
+      lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
       lcd.setCursor(0, 0);
       lcd.print(lcd_status);
       delay(100);
