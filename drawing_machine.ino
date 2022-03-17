@@ -26,10 +26,10 @@ const int BUTTON_9 = 52;   // row 3 col 3
 int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed = 100;
 int Arm2Speed = 100;
-const int max_platter_speed = 255;
-const int max_arm1_speed = 255;
-const int max_arm2_speed = 255;
-const int motor_min = 50;
+const int MAX_PLATTER_SPEED = 255;
+const int MAX_ARM1_SPEED = 255;
+const int MAX_ARM2_SPEED = 255;
+const int MOTOR_MIN = 50;
 
 bool motorsOn = false;
 int start_button;
@@ -48,11 +48,9 @@ bool button_change = false;
 
 String lcd_status;
 
-/*
-  unsigned long startMillis;
-  unsigned long currentMillis;
-  const unsigned long period = 100;  // milliseconds
-*/
+unsigned long startMillis;
+unsigned long currentMillis;
+const unsigned long PERIOD = 100;  // milliseconds
 
 const bool ON = LOW;
 const bool OFF = HIGH;
@@ -85,7 +83,7 @@ void setup() {
   pinMode(PlatterPin, OUTPUT);
   Serial.begin(9600);
 
-  // startMillis = millis();  //initial start time
+  startMillis = millis();  //initial start time
 }
 
 void loop() {
@@ -96,9 +94,26 @@ void loop() {
     /*
        This is where we might adjust the speeds of
        Arm1Speed and Arm2Speed according to:
-          waveforms (none, square, saw, trianlge, sine)
+          waveforms (none, square, saw, triangle, sine)
           frequency
           amplitude
+       based on startMillis
+
+       none:
+           return current speed
+       square:
+           find out how many freqs there have been since startMillis
+           odd, return MAX_AMP, even, return MIN_AMP
+       saw:
+           start at MAX_AMP, ramp down until MIN_AMP
+           snap back to MAX_AMP
+       triangle:
+           ramp up, then ramp down
+           find out how many freqs there have been since startMillis
+           in the first half of frequency? ramp up until MAX_AMP
+           then ramp down until MIN_AMP
+       sine:
+           plt the  sine of currentMillis - startMillis
     */
   }
 
@@ -112,6 +127,7 @@ void loop() {
       Serial.println("motors started");
     }
     motorsOn = true;
+    startMillis = millis();  //initial start time
   }
 
   if (start_button == OFF) {
@@ -136,31 +152,47 @@ void loop() {
     button_8_state = digitalRead(BUTTON_8);
     button_9_state = digitalRead(BUTTON_9);
 
-    if (button_1_state == ON && PlatterSpeed < max_platter_speed) { // platter speed up
+    if (button_1_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // platter speed up
       PlatterSpeed += 1;
       button_change = true;
     }
-    if (button_2_state == ON && PlatterSpeed > motor_min) { // platter speed down
+    if (button_2_state == ON && PlatterSpeed > MOTOR_MIN) { // platter speed down
       PlatterSpeed -= 1;
       button_change = true;
     }
 
-    if (button_4_state == ON && Arm1Speed < max_arm1_speed) { // Arm1 speed up
+    if (button_4_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // Arm1 speed up
       Arm1Speed += 1;
       button_change = true;
     }
-    if (button_5_state == ON && Arm1Speed > motor_min) { // Arm1Speed speed down
+    if (button_5_state == ON && Arm1Speed > MOTOR_MIN) { // Arm1Speed speed down
       Arm1Speed -= 1;
       button_change = true;
     }
 
-    if (button_7_state == ON && Arm2Speed < max_arm2_speed) { // Arm2 speed up
+    if (button_7_state == ON && Arm2Speed < MAX_ARM2_SPEED) { // Arm2 speed up
       Arm2Speed += 1;
       button_change = true;
     }
-    if (button_8_state == ON && Arm2Speed > motor_min) { // Arm2 speed down
+    if (button_8_state == ON && Arm2Speed > MOTOR_MIN) { // Arm2 speed down
       Arm2Speed -= 1;
       button_change = true;
+    }
+
+    if (button_3_state == ON) {
+      analogWrite(Arm1Pin, Arm1Speed);
+      while (digitalRead(BUTTON_3) == ON) { // advance Arm1
+        delay(100);
+      }
+      analogWrite(Arm1Pin, 0);
+    }
+
+    if (button_9_state == ON) {
+      analogWrite(Arm2Pin, Arm2Speed);
+      while (digitalRead(BUTTON_9) == ON) { // advance Arm2
+        delay(100);
+      }
+      analogWrite(Arm2Pin, 0);
     }
 
     if (button_change == true) {
