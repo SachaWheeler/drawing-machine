@@ -22,6 +22,8 @@ const int BUTTON_7 = 48;     // row 1 col 3
 const int BUTTON_8 = 50;     // row 2 col 3
 const int BUTTON_9 = 52;     // row 3 col 3
 
+const int BUTTON_PAUSE = 100; // milliseconds to wait while button being pressed
+
 // variables
 int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed    = 150;
@@ -52,7 +54,10 @@ String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
 }
 
-void set_waveforms() {
+void set_waveforms() { 
+  /*
+   * This will probbaly be done in hardware
+   */
   Serial.println("Set waveforms (Y)?"); //Prompt User for Input
   while (Serial.available() == 0); // Wait for User
 
@@ -93,11 +98,26 @@ void setup() {
   // LCD
   lcd.begin(16, 2);
   lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
-  lcd.setCursor(0, 0);
-  lcd.print(lcd_status);
+  // lcd.setCursor(0, 0);
+  // lcd.print(lcd_status);
 
   // buttons
   pinMode(START_BUTTON, INPUT_PULLUP);
+
+  // pause startup if START_BUTTON is pushed
+  start_button = digitalRead(START_BUTTON);
+  if (start_button == ON){
+    lcd.setCursor(0, 0);
+    lcd.print("Start button");
+    lcd.setCursor(0, 1);
+    lcd.print("must be OFF!");
+    while(digitalRead(START_BUTTON) == ON); // wait until turned off
+    lcd.setCursor(0, 1);
+    lcd.print("            ");
+  }
+  lcd.setCursor(0, 0);
+  lcd.print(lcd_status);
+  
   pinMode(BUTTON_1, INPUT_PULLUP);
   pinMode(BUTTON_2, INPUT_PULLUP);
   pinMode(BUTTON_3, INPUT_PULLUP);
@@ -116,7 +136,7 @@ void setup() {
   Serial.begin(9600);
   // startMillis = millis();  //initial start time
 
-  set_waveforms();
+ // set_waveforms();
 }
 
 void loop() {
@@ -191,31 +211,37 @@ void loop() {
     button_8_state = digitalRead(BUTTON_8);
     button_9_state = digitalRead(BUTTON_9);
 
-    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // platter speed up
+    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // Arm1 speed up
       Arm1Speed += 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
-    if (button_2_state == ON && Arm1Speed > MOTOR_MIN) { // platter speed down
+    if (button_2_state == ON && Arm1Speed > MOTOR_MIN) { // Arm1 speed down
       Arm1Speed -= 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
 
-    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // Arm1 speed up
+    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // Platter speed up
       PlatterSpeed += 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
-    if (button_5_state == ON && PlatterSpeed > MOTOR_MIN) { // Arm1Speed speed down
+    if (button_5_state == ON && PlatterSpeed > MOTOR_MIN) { // Platter speed down
       PlatterSpeed -= 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
 
     if (button_7_state == ON && Arm2Speed < MAX_ARM2_SPEED) { // Arm2 speed up
       Arm2Speed += 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
     if (button_8_state == ON && Arm2Speed > MOTOR_MIN) { // Arm2 speed down
       Arm2Speed -= 1;
       button_change = true;
+      delay(BUTTON_PAUSE);
     }
 
     // advance Arms
