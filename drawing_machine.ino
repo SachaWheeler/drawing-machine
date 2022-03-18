@@ -29,6 +29,14 @@ int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed    = 150;
 int Arm2Speed    = 150;
 
+unsigned int adjusted_platter_speed;
+unsigned int adjusted_arm1_speed;
+unsigned int adjusted_arm2_speed;
+unsigned int duration;
+unsigned int remainder;
+float slope;
+unsigned int adjustment;
+
 const int MAX_PLATTER_SPEED = 255;
 const int MAX_ARM1_SPEED    = 255;
 const int MAX_ARM2_SPEED    = 255;
@@ -40,7 +48,11 @@ int start_button;
 int button_1_state = 0, button_2_state = 0, button_3_state = 0, button_4_state = 0, button_5_state = 0, button_6_state = 0, button_7_state = 0, button_8_state = 0, button_9_state = 0;
 bool button_change = false;
 
-int arm1_wave = 0, arm2_wave = 0, arm1_period = 1, arm2_period = 1, arm1_amp = 1, arm2_amp = 1;
+const char *Waves[] = {"None", "Square", "Saw",  "Triangle", "Sine"};
+
+// int arm1_wave = 0, arm2_wave = 0, arm1_period = 1, arm2_period = 1, arm1_amp = 1, arm2_amp = 1;
+unsigned int arm1_wave = 0, arm1_period = 1, arm1_amp = 1; // testing
+String wave_status; // testing
 
 String lcd_status;
 
@@ -54,10 +66,10 @@ String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
 }
 
-void set_waveforms() { 
+void set_waveforms() {
   /*
-   * This will probbaly be done in hardware
-   */
+     This will probbaly be done in hardware
+  */
   Serial.println("Set waveforms (Y)?"); //Prompt User for Input
   while (Serial.available() == 0); // Wait for User
 
@@ -83,7 +95,7 @@ void set_waveforms() {
         Serial.println("Arm1 amplitude?"); //Prompt User for Input
         while (Serial.available() == 0); // Wait for User
         int arm1_amp_choice = Serial.parseInt(); //Read the data the user has input
-        if (arm1_amp_choice > 0 and arm1_amp_choice <=100){
+        if (arm1_amp_choice > 0 and arm1_amp_choice <= 100) {
           Serial.println("Arm1 amplitude set to :" + String(arm1_amp_choice));
           arm1_amp = arm1_amp_choice;
         }
@@ -106,18 +118,18 @@ void setup() {
 
   // pause startup if START_BUTTON is pushed
   start_button = digitalRead(START_BUTTON);
-  if (start_button == ON){
+  if (start_button == ON) {
     lcd.setCursor(0, 0);
     lcd.print("Start button");
     lcd.setCursor(0, 1);
     lcd.print("must be OFF!");
-    while(digitalRead(START_BUTTON) == ON); // wait until turned off
+    while (digitalRead(START_BUTTON) == ON); // wait until turned off
     lcd.setCursor(0, 1);
     lcd.print("            ");
   }
   lcd.setCursor(0, 0);
   lcd.print(lcd_status);
-  
+
   pinMode(BUTTON_1, INPUT_PULLUP);
   pinMode(BUTTON_2, INPUT_PULLUP);
   pinMode(BUTTON_3, INPUT_PULLUP);
@@ -136,7 +148,7 @@ void setup() {
   Serial.begin(9600);
   // startMillis = millis();  //initial start time
 
- // set_waveforms();
+  // set_waveforms();
 }
 
 void loop() {
@@ -167,12 +179,68 @@ void loop() {
        sine:
            plt the sine of currentMillis - startMillis
     */
-    Serial.print(arm1_wave);
-    Serial.print(arm2_wave);
-    Serial.print(arm1_period);
-    Serial.print(arm2_period);
-    Serial.print(arm1_amp);
-    Serial.println(arm2_amp);
+
+    // testing vars
+    arm1_wave = 3;
+    arm1_period = 500; //milliseconds
+    arm1_amp = 40;
+
+    currentMillis = millis();
+    duration = int(currentMillis - startMillis);
+    remainder = duration % (arm1_period);
+
+    wave_status = "Arm1: speed:" + String(Arm1Speed) + " wave:" + String(Waves[arm1_wave]) + " period:" + String(arm1_period) + " amp:" + String(arm1_amp);
+    //Serial.println(wave_status);
+    Serial.println("remainder: " + String(remainder));
+
+    if (arm1_wave == 0) { // no wave
+
+      adjusted_arm1_speed = Arm1Speed;
+
+    } else if (arm1_wave == 1) { // square - DONE
+
+      if (remainder <= int(arm1_period / 2)) { // HIGH
+        adjustment = int(arm1_amp / 2);
+      } else { // LOW
+        adjustment = -int(arm1_amp / 2);
+      }
+      adjusted_arm1_speed = Arm1Speed + adjustment;
+
+    } else if (arm1_wave == 2) { // saw DONE
+
+      // ramps up, then snaps back
+      slope = 1000 * arm1_amp / arm1_period;
+      //Serial.println(slope);
+      adjustment = -int(arm1_amp / 2) + int(slope * remainder / 1000);
+      adjusted_arm1_speed = Arm1Speed + adjustment;
+
+    } else if (arm1_wave == 3) { // triangle
+
+      
+
+
+
+
+      // ramps up for half the period, then ramps back down
+      slope = 2 * 1000 * arm1_amp / arm1_period; // half the period so twice the slope
+      if (remainder <= int(arm1_period / 2)) { // ASCENDING
+        adjustment = -int(arm1_amp / 2) + int(slope * remainder / 1000);
+      } else { // DESCENDING
+        adjustment = int(arm1_amp / 2) - int(slope * (remainder - (remainder / 1000)));
+      }
+      adjusted_arm1_speed = Arm1Speed + adjustment;
+
+
+
+
+
+
+    } else if (arm1_wave == 4) { // sine
+
+      adjusted_arm1_speed = Arm1Speed;
+
+    }
+    Serial.println("ArmSpeed: " + String(Arm1Speed) + " Adj arm speed: " + String(adjusted_arm1_speed));
   }
 
   if (start_button == ON && motorsOn == false) { // start the motors
