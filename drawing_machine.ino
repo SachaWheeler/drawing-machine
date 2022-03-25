@@ -10,8 +10,9 @@ const int Arm2Pin    = 2;
 const int PlatterPin = 3;
 const int Arm1Pin    = 4;
 
-// control panel
-const int START_BUTTON = 22; // start button
+// control panel 1
+const int START_BUTTON = 34; // start button
+
 const int BUTTON_1 = 36;     // row 1 col 1
 const int BUTTON_2 = 38;     // row 2 col 1
 const int BUTTON_3 = 40;     // row 3 col 1
@@ -21,6 +22,32 @@ const int BUTTON_6 = 46;     // row 3 col 2
 const int BUTTON_7 = 48;     // row 1 col 3
 const int BUTTON_8 = 50;     // row 2 col 3
 const int BUTTON_9 = 52;     // row 3 col 3
+
+// control panel 2
+const int SELECTOR_A_1 = 53; // first selector, first option
+const int SELECTOR_A_2 = 51;
+const int SELECTOR_A_3 = 49;
+const int SELECTOR_A_4 = 47;
+const int SELECTOR_A_5 = 45;
+const int SELECTOR_B_1 = 43;
+const int SELECTOR_B_2 = 41;
+const int SELECTOR_B_3 = 39;
+const int SELECTOR_B_4 = 37;
+const int SELECTOR_B_5 = 35;
+
+const int BUTTON_A_FREQ_UP = 22;
+const int BUTTON_A_FREQ_DOWN = 24;
+const int BUTTON_A_PERIOD_UP = 26;
+const int BUTTON_A_PERIOD_DOWN = 28;
+const int BUTTON_B_FREQ_UP = 23;
+const int BUTTON_B_FREQ_DOWN = 25;
+const int BUTTON_B_PERIOD_UP = 27;
+const int BUTTON_B_PERIOD_DOWN = 29;
+
+int button_a_freq_up = 0, button_a_freq_down = 0, button_a_period_up = 0, button_a_period_down = 0, button_b_freq_up = 0, button_b_freq_down = 0, button_b_period_up = 0, button_b_period_down = 0;
+int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0, selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
+long selectorMillis = 0;
+const long SELECTOR_INTERVAL = 500;
 
 const int BUTTON_PAUSE = 100; // milliseconds to wait while button being pressed
 
@@ -66,52 +93,10 @@ String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
 }
 
-void set_waveforms() {
-  /*
-     This will probbaly be done in hardware
-  */
-  Serial.println("Set waveforms (Y)?"); //Prompt User for Input
-  while (Serial.available() == 0); // Wait for User
-
-  String yes_no = Serial.readString(); //Read the data the user has input
-  if (yes_no.startsWith("Y")) {
-    Serial.println("Arm1: 0) None, 1) square, 2) saw, 3) triangle, 4) sine"); //Prompt User for Input
-    while (Serial.available() == 0); // Wait for User
-
-    int arm1_wave_choice = Serial.parseInt(); //Read the data the user has input
-    if (arm1_wave_choice >= 0 && arm1_wave_choice <= 4) {
-      Serial.println("Arm1 wave set to :" + String(arm1_wave_choice));
-      arm1_wave = arm1_wave_choice;
-
-      Serial.println("Arm1 period?"); //Prompt User for Input
-      while (Serial.available() == 0); // Wait for User
-
-      int arm1_period_choice = Serial.parseInt(); //Read the data the user has input
-      Serial.println(arm1_period_choice);
-      if (arm1_period_choice > 0 && arm1_period_choice <= 60) {
-        Serial.println("Arm1 period set to :" + String(arm1_period_choice));
-        arm1_period = arm1_period_choice;
-
-        Serial.println("Arm1 amplitude?"); //Prompt User for Input
-        while (Serial.available() == 0); // Wait for User
-        int arm1_amp_choice = Serial.parseInt(); //Read the data the user has input
-        if (arm1_amp_choice > 0 and arm1_amp_choice <= 100) {
-          Serial.println("Arm1 amplitude set to :" + String(arm1_amp_choice));
-          arm1_amp = arm1_amp_choice;
-        }
-      }
-    }
-  } else {
-    Serial.println("Waveforms not set"); //Prompt User for Input
-  }
-}
-
 void setup() {
   // LCD
   lcd.begin(16, 2);
   lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
-  // lcd.setCursor(0, 0);
-  // lcd.print(lcd_status);
 
   // buttons
   pinMode(START_BUTTON, INPUT_PULLUP);
@@ -124,11 +109,10 @@ void setup() {
     lcd.setCursor(0, 1);
     lcd.print("must be OFF!");
     while (digitalRead(START_BUTTON) == ON); // wait until turned off
-    lcd.setCursor(0, 1);
-    lcd.print("            ");
+    lcd.clear();
   }
   lcd.setCursor(0, 0);
-  lcd.print(lcd_status);
+  lcd.print("Starting...");
 
   pinMode(BUTTON_1, INPUT_PULLUP);
   pinMode(BUTTON_2, INPUT_PULLUP);
@@ -140,6 +124,26 @@ void setup() {
   pinMode(BUTTON_8, INPUT_PULLUP);
   pinMode(BUTTON_9, INPUT_PULLUP);
 
+  pinMode(SELECTOR_A_1, INPUT_PULLUP);
+  pinMode(SELECTOR_A_2, INPUT_PULLUP);
+  pinMode(SELECTOR_A_3, INPUT_PULLUP);
+  pinMode(SELECTOR_A_4, INPUT_PULLUP);
+  pinMode(SELECTOR_A_5, INPUT_PULLUP);
+  pinMode(SELECTOR_B_1, INPUT_PULLUP);
+  pinMode(SELECTOR_B_2, INPUT_PULLUP);
+  pinMode(SELECTOR_B_3, INPUT_PULLUP);
+  pinMode(SELECTOR_B_4, INPUT_PULLUP);
+  pinMode(SELECTOR_B_5, INPUT_PULLUP);
+
+  pinMode(BUTTON_A_FREQ_UP,     INPUT_PULLUP);
+  pinMode(BUTTON_A_FREQ_DOWN,   INPUT_PULLUP);
+  pinMode(BUTTON_A_PERIOD_UP,   INPUT_PULLUP);
+  pinMode(BUTTON_A_PERIOD_DOWN, INPUT_PULLUP);
+  pinMode(BUTTON_B_FREQ_UP,     INPUT_PULLUP);
+  pinMode(BUTTON_B_FREQ_DOWN,   INPUT_PULLUP);
+  pinMode(BUTTON_B_PERIOD_UP,   INPUT_PULLUP);
+  pinMode(BUTTON_B_PERIOD_DOWN, INPUT_PULLUP);
+
   // motors
   pinMode(Arm1Pin, OUTPUT);
   pinMode(Arm2Pin, OUTPUT);
@@ -148,7 +152,8 @@ void setup() {
   Serial.begin(9600);
   // startMillis = millis();  //initial start time
 
-  // set_waveforms();
+  lcd.setCursor(0, 0);
+  lcd.print(lcd_status);
 }
 
 void loop() {
@@ -216,22 +221,27 @@ void loop() {
 
     } else if (arm1_wave == 3) { // triangle
 
-      
 
-
+      /*
+              |   /\
+              |__/__\___
+              | /    \
+              |/______\_________
+      */
 
 
       // ramps up for half the period, then ramps back down
       slope = 2 * 1000 * arm1_amp / arm1_period; // half the period so twice the slope
       if (remainder <= int(arm1_period / 2)) { // ASCENDING
+        Serial.println("up");
         adjustment = -int(arm1_amp / 2) + int(slope * remainder / 1000);
+        Serial.println(remainder);
       } else { // DESCENDING
-        adjustment = int(arm1_amp / 2) - int(slope * (remainder - (remainder / 1000)));
+        Serial.println("down");
+        adjustment = -int(arm1_amp / 2) + int(arm1_amp - slope * arm1_period / 1000);
+        Serial.println(arm1_period - remainder);
       }
       adjusted_arm1_speed = Arm1Speed + adjustment;
-
-
-
 
 
 
@@ -331,6 +341,107 @@ void loop() {
         delay(50);
       }
       analogWrite(Arm2Pin, 0);
+    }
+
+    if (currentMillis - selectorMillis > SELECTOR_INTERVAL) {
+      // only run every SELECTOR_INTERVAL (500) millis
+      selectorMillis = currentMillis;
+
+      // set the waves
+      selector_a_1 = digitalRead(SELECTOR_A_1);
+      selector_a_2 = digitalRead(SELECTOR_A_2);
+      selector_a_3 = digitalRead(SELECTOR_A_3);
+      selector_a_4 = digitalRead(SELECTOR_A_4);
+      selector_a_5 = digitalRead(SELECTOR_A_5);
+      selector_b_1 = digitalRead(SELECTOR_B_1);
+      selector_b_2 = digitalRead(SELECTOR_B_2);
+      selector_b_3 = digitalRead(SELECTOR_B_3);
+      selector_b_4 = digitalRead(SELECTOR_B_4);
+      selector_b_5 = digitalRead(SELECTOR_B_5);
+
+      /*
+            These are giving a false ON (LOW) signal. test connection
+
+
+        08:21:16.717 -> selector_a_4 //  a4 is giving false positives (ON, LOW
+
+      */
+      if (selector_a_1 == ON) {
+        Serial.println("selector_a_1");
+
+      }
+      if (selector_a_2 == ON) {
+        Serial.println("selector_a_2");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_a_3 == ON) {
+        Serial.println("selector_a_3");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_a_4 == ON) { // test connection
+        Serial.println("selector_a_4");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_a_5 == ON) {
+        Serial.println("selector_a_5");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_b_1 == ON) {
+        Serial.println("selector_b_1");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_b_2 == ON) {
+        Serial.println("selector_b_2");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_b_3 == ON) {
+        Serial.println("selector_b_3");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_b_4 == ON) {
+        Serial.println("selector_b_4");
+        delay(BUTTON_PAUSE);
+      }
+      if (selector_b_5 == ON) {
+        Serial.println("selector_b_5");
+        delay(BUTTON_PAUSE);
+      }
+      Serial.println(" ");
+      /*   */
+    }
+
+    button_a_freq_up     = digitalRead(BUTTON_A_FREQ_UP);
+    button_a_freq_down   = digitalRead(BUTTON_A_FREQ_DOWN);
+    button_a_period_up   = digitalRead(BUTTON_A_PERIOD_UP);
+    button_a_period_down = digitalRead(BUTTON_A_PERIOD_DOWN);
+    button_b_freq_up     = digitalRead(BUTTON_B_FREQ_UP);
+    button_b_freq_down   = digitalRead(BUTTON_B_FREQ_DOWN);
+    button_b_period_up   = digitalRead(BUTTON_B_PERIOD_UP);
+    button_b_period_down = digitalRead(BUTTON_B_PERIOD_DOWN);
+
+    if (button_a_freq_up == ON) {
+      Serial.println("button_a_freq_up");
+    }
+    if (button_a_freq_down == ON) {
+      Serial.println("button_a_freq_down");
+    }
+    if (button_a_period_up == ON) {
+      Serial.println("button_a_period_up");
+    }
+    if (button_a_period_down == ON) {
+      Serial.println("button_a_period_down");
+    }
+    if (button_b_freq_up == ON) {
+      Serial.println("button_b_freq_up");
+    }
+    if (button_b_freq_down == ON) {
+      Serial.println("button_b_freq_down");
+    }
+    if (button_b_period_up == ON) {
+      Serial.println("button_b_period_up");
+    }
+    if (button_b_period_down == ON) {
+      Serial.println("button_b_period_down");
     }
 
     // change LCD status
