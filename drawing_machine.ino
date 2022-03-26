@@ -343,7 +343,7 @@ void loop() {
       analogWrite(Arm2Pin, 0);
     }
 
-    if (currentMillis - selectorMillis > SELECTOR_INTERVAL) {
+    if (currentMillis - selectorMillis >= SELECTOR_INTERVAL) {
       // only run every SELECTOR_INTERVAL (500) millis
       selectorMillis = currentMillis;
 
