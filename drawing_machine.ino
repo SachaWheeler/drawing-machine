@@ -253,6 +253,10 @@ void loop() {
     Serial.println("ArmSpeed: " + String(Arm1Speed) + " Adj arm speed: " + String(adjusted_arm1_speed));
   }
 
+  /*
+   * Start the motors
+   */
+
   if (start_button == ON && motorsOn == false) { // start the motors
     Serial.println("run");
 
@@ -265,6 +269,10 @@ void loop() {
     motorsOn = true;
     startMillis = millis();  //initial start time
   }
+
+  /*
+   * Stop the motors
+   */
 
   if (start_button == OFF) {
     if (motorsOn == true) { // stop the motors
