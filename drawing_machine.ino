@@ -49,7 +49,7 @@ int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, sele
 long selectorMillis = 0;
 const long SELECTOR_INTERVAL = 500;
 
-const int BUTTON_PAUSE = 100; // milliseconds to wait while button being pressed
+const int BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
 
 // variables
 int PlatterSpeed = 60; // initial variables, will change
