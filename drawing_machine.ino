@@ -1,9 +1,15 @@
-// include the lcd code:
-#include <LiquidCrystal.h>
+// libraries
+#include <LiquidCrystal.h> // LCD
+#include <SPI.h>           // SD card
+#include <SD.h>            // SD card
 
 // LCD variables - https://www.arduino.cc/en/Reference/LiquidCrystalConstructor
 const int rs = 12, en = 11, d4 = 9, d5 = 8, d6 = 7, d7 = 6; // 2, 3, 4, 5 become 6, 7, 8, 9
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+// SD vars
+const int SD_CS = 18, SD_CLK = 19 ,SD_MOSI = 20, SD_MISO = 21;
+File dataFile;
 
 // motors
 const int Arm2Pin    = 2;
@@ -69,8 +75,8 @@ const int MAX_ARM1_SPEED    = 255;
 const int MAX_ARM2_SPEED    = 255;
 const int MOTOR_MIN         = 55;
 
-const int MIN_AMP = 5;
-const int MAX_AMP = 100;
+const int MIN_AMP    = 5;
+const int MAX_AMP    = 100;
 const int MIN_PERIOD = 1;
 const int MAX_PERIOD = 120;
 
@@ -81,14 +87,14 @@ int button_1_state = 0, button_2_state = 0, button_3_state = 0, button_4_state =
 
 const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
 
-unsigned int arm1_wave = 0, arm2_wave = 0, arm1_period = MIN_PERIOD, arm2_period = MIN_PERIOD, arm1_amp = MIN_AMP, arm2_amp = MIN_AMP;
-unsigned int prev_arm2_wave = arm2_wave, prev_arm1_wave = arm1_wave;
+unsigned int arm1_wave = 0, arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
+             arm2_wave = 0, arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
+unsigned int prev_arm1_wave = arm1_wave, prev_arm2_wave = arm2_wave;
 
-unsigned long startMillis, currentMillis;
+unsigned long startMillis, stopMillis, currentMillis;
 const unsigned long PERIOD = 100;  // milliseconds
 
 const bool ON = LOW, OFF = HIGH;
-const bool RUN_MOTORS = true; // change this to false for testing without motors
 
 String get_status() {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
@@ -120,6 +126,20 @@ void lcd_display(String line_1, String line_2) {
 void setup() {
   // LCD
   lcd.begin(16, 2);
+
+  // SD card
+  SD.begin(SD_CS);
+  dataFile = SD.open("data.txt", FILE_WRITE);
+
+  /* write using: dataFile.write(data);
+   *  
+   *  dataFile.print(data);
+      dataFile.println(data); // followed by a new line
+
+      dataFile.read();
+
+   *  
+   */
 
   // buttons
   pinMode(START_BUTTON, INPUT_PULLUP);
@@ -203,11 +223,6 @@ void loop() {
            plt the sine of currentMillis - startMillis
     */
 
-    // testing vars
-    // arm1_wave = 3;
-    // arm1_period = 500; //milliseconds
-    // arm1_amp = 40;
-
     currentMillis = millis();
     duration = int(currentMillis - startMillis);
     remainder = duration % (arm1_period);
@@ -275,16 +290,13 @@ void loop() {
   */
 
   if (start_button == ON && motorsOn == false) { // start the motors
-    Serial.println("run");
+    analogWrite(PlatterPin, PlatterSpeed);
+    analogWrite(Arm1Pin, Arm1Speed);
+    analogWrite(Arm2Pin, Arm2Speed);
+    Serial.println("motors started");
 
-    if (RUN_MOTORS == true) { // start them
-      analogWrite(Arm1Pin, Arm1Speed);
-      analogWrite(Arm2Pin, Arm2Speed);
-      analogWrite(PlatterPin, PlatterSpeed);
-      Serial.println("motors started");
-    }
     motorsOn = true;
-    startMillis = millis();  //initial start time
+    startMillis = millis();  // start time
   }
 
   /*
@@ -293,14 +305,13 @@ void loop() {
 
   if (start_button == OFF) {
     if (motorsOn == true) { // stop the motors
-      Serial.println("stop");
-      if (RUN_MOTORS == true) {
-        analogWrite(PlatterPin, 0);
-        analogWrite(Arm1Pin, 0);
-        analogWrite(Arm2Pin, 0);
-        Serial.println("motors stopped");
-      }
+      analogWrite(PlatterPin, 0);
+      analogWrite(Arm1Pin, 0);
+      analogWrite(Arm2Pin, 0);
+      Serial.println("motors stopped");
+
       motorsOn = false;
+      stopMillis = millis();  // stop time
     }
 
     // set the speeds
