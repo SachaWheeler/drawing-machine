@@ -78,15 +78,11 @@ bool motorsOn = false;
 int start_button;
 
 int button_1_state = 0, button_2_state = 0, button_3_state = 0, button_4_state = 0, button_5_state = 0, button_6_state = 0, button_7_state = 0, button_8_state = 0, button_9_state = 0;
-bool button_change = false;
 
-const char *Waves[] = {"None", "Square", "Saw",  "Triangle", "Sine"};
+const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
 
-unsigned int arm1_wave = 0, arm2_wave = 0, arm1_period = 1, arm2_period = 1, arm1_amp = 1, arm2_amp = 1;
-// unsigned int arm1_wave = 0, arm1_period = 1, arm1_amp = 1; // testing
-String wave_status; // testing
-
-String lcd_status;
+unsigned int arm1_wave = 0, arm2_wave = 0, arm1_period = MIN_PERIOD, arm2_period = MIN_PERIOD, arm1_amp = MIN_AMP, arm2_amp = MIN_AMP;
+unsigned int prev_arm2_wave = arm2_wave, prev_arm1_wave = arm1_wave;
 
 unsigned long startMillis, currentMillis;
 const unsigned long PERIOD = 100;  // milliseconds
@@ -94,26 +90,36 @@ const unsigned long PERIOD = 100;  // milliseconds
 const bool ON = LOW, OFF = HIGH;
 const bool RUN_MOTORS = true; // change this to false for testing without motors
 
-String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
+String get_status() {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
 }
 
-unsigned int get_amp(int amplitude){
-  if(amplitude > MAX_AMP) return MAX_AMP;
+String get_wave_status() {
+  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + ":" + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+}
+
+unsigned int get_amp(int amplitude) {
+  if (amplitude > MAX_AMP) return MAX_AMP;
   else if (amplitude < MIN_AMP) return MIN_AMP;
   else return amplitude;
 }
 
-unsigned int get_period(int period){
-  if(period > MAX_PERIOD) return MAX_PERIOD;
+unsigned int get_period(int period) {
+  if (period > MAX_PERIOD) return MAX_PERIOD;
   else if (period < MIN_PERIOD) return MIN_PERIOD;
   else return period;
+}
+
+void lcd_display(String line_1, String line_2) {
+  lcd.setCursor(0, 0);
+  lcd.print(line_1);
+  lcd.setCursor(0, 1);
+  lcd.print(line_2);
 }
 
 void setup() {
   // LCD
   lcd.begin(16, 2);
-  lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
 
   // buttons
   pinMode(START_BUTTON, INPUT_PULLUP);
@@ -121,15 +127,11 @@ void setup() {
   // pause startup if START_BUTTON is pushed
   start_button = digitalRead(START_BUTTON);
   if (start_button == ON) {
-    lcd.setCursor(0, 0);
-    lcd.print("Start button");
-    lcd.setCursor(0, 1);
-    lcd.print("must be OFF!");
+    lcd_display("Start button", "must be OFF!");
     while (digitalRead(START_BUTTON) == ON); // wait until turned off
     lcd.clear();
   }
-  lcd.setCursor(0, 0);
-  lcd.print("Starting...");
+  lcd_display("Starting...", " ");
 
   pinMode(BUTTON_1, INPUT_PULLUP);
   pinMode(BUTTON_2, INPUT_PULLUP);
@@ -167,10 +169,9 @@ void setup() {
   pinMode(PlatterPin, OUTPUT);
 
   Serial.begin(9600);
-  // startMillis = millis();  //initial start time
+  startMillis = millis();  //initial start time
 
-  lcd.setCursor(0, 0);
-  lcd.print(lcd_status);
+  lcd_display(get_status(), get_wave_status());
 }
 
 void loop() {
@@ -211,7 +212,6 @@ void loop() {
     duration = int(currentMillis - startMillis);
     remainder = duration % (arm1_period);
 
-    wave_status = "Arm1: speed:" + String(Arm1Speed) + " wave:" + String(Waves[arm1_wave]) + " period:" + String(arm1_period) + " amp:" + String(arm1_amp);
     //Serial.println(wave_status);
     Serial.println("remainder: " + String(remainder));
 
@@ -271,8 +271,8 @@ void loop() {
   }
 
   /*
-   * Start the motors
-   */
+     Start the motors
+  */
 
   if (start_button == ON && motorsOn == false) { // start the motors
     Serial.println("run");
@@ -288,8 +288,8 @@ void loop() {
   }
 
   /*
-   * Stop the motors
-   */
+     Stop the motors
+  */
 
   if (start_button == OFF) {
     if (motorsOn == true) { // stop the motors
@@ -314,47 +314,21 @@ void loop() {
     button_8_state = digitalRead(BUTTON_8);
     button_9_state = digitalRead(BUTTON_9);
 
-    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED) { // Arm1 speed up
-      Arm1Speed += 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
-    if (button_2_state == ON && Arm1Speed > MOTOR_MIN) { // Arm1 speed down
-      Arm1Speed -= 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
+    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED)         Arm1Speed += 1;
+    else if (button_2_state == ON && Arm1Speed > MOTOR_MIN)         Arm1Speed -= 1;
 
-    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED) { // Platter speed up
-      PlatterSpeed += 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
-    if (button_5_state == ON && PlatterSpeed > MOTOR_MIN) { // Platter speed down
-      PlatterSpeed -= 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
+    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED)   PlatterSpeed += 1;
+    else if (button_5_state == ON && PlatterSpeed > MOTOR_MIN)      PlatterSpeed -= 1;
 
-    if (button_7_state == ON && Arm2Speed < MAX_ARM2_SPEED) { // Arm2 speed up
-      Arm2Speed += 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
-    if (button_8_state == ON && Arm2Speed > MOTOR_MIN) { // Arm2 speed down
-      Arm2Speed -= 1;
-      button_change = true;
-      delay(BUTTON_PAUSE);
-    }
+    if (button_7_state == ON && Arm2Speed < MAX_ARM2_SPEED)         Arm2Speed += 1;
+    else if (button_8_state == ON && Arm2Speed > MOTOR_MIN)         Arm2Speed -= 1;
 
     // advance Arms
     if (button_3_state == ON) { // Arm1
       int advance_speed = int(Arm1Speed / 2);
       if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
       analogWrite(Arm1Pin, advance_speed);
-      while (digitalRead(BUTTON_3) == ON) { // advance Arm1
-        delay(50);
-      }
+      while (digitalRead(BUTTON_3) == ON);
       analogWrite(Arm1Pin, 0);
     }
 
@@ -362,40 +336,34 @@ void loop() {
       int advance_speed = int(Arm2Speed / 2);
       if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
       analogWrite(Arm2Pin, advance_speed);
-      while (digitalRead(BUTTON_9) == ON) { // advance Arm2
-        delay(50);
-      }
+      while (digitalRead(BUTTON_9) == ON);
       analogWrite(Arm2Pin, 0);
     }
 
-    if (currentMillis - selectorMillis >= SELECTOR_INTERVAL) {  // only run every SELECTOR_INTERVAL (500) millis
-      selectorMillis = currentMillis;
+    // set the waves
+    selector_a_1 = digitalRead(SELECTOR_A_1);
+    selector_a_2 = digitalRead(SELECTOR_A_2);
+    selector_a_3 = digitalRead(SELECTOR_A_3);
+    selector_a_4 = digitalRead(SELECTOR_A_4);
+    selector_a_5 = digitalRead(SELECTOR_A_5);
+    selector_b_1 = digitalRead(SELECTOR_B_1);
+    selector_b_2 = digitalRead(SELECTOR_B_2);
+    selector_b_3 = digitalRead(SELECTOR_B_3);
+    selector_b_4 = digitalRead(SELECTOR_B_4);
+    selector_b_5 = digitalRead(SELECTOR_B_5);
 
-      // set the waves
-      selector_a_1 = digitalRead(SELECTOR_A_1);
-      selector_a_2 = digitalRead(SELECTOR_A_2);
-      selector_a_3 = digitalRead(SELECTOR_A_3);
-      selector_a_4 = digitalRead(SELECTOR_A_4);
-      selector_a_5 = digitalRead(SELECTOR_A_5);
-      selector_b_1 = digitalRead(SELECTOR_B_1);
-      selector_b_2 = digitalRead(SELECTOR_B_2);
-      selector_b_3 = digitalRead(SELECTOR_B_3);
-      selector_b_4 = digitalRead(SELECTOR_B_4);
-      selector_b_5 = digitalRead(SELECTOR_B_5);
+    if (selector_a_1 == ON)         arm1_wave = 0;
+    else if (selector_a_2 == ON)    arm1_wave = 1;
+    else if (selector_a_3 == ON)    arm1_wave = 2;
+    else if (selector_a_4 == ON)    arm1_wave = 3;
+    else if (selector_a_5 == ON)    arm1_wave = 4;
 
-      if (selector_a_1 == ON) {         arm1_wave = 0;
-      } else if (selector_a_2 == ON) {  arm1_wave = 1;
-      } else if (selector_a_3 == ON) {  arm1_wave = 2;
-      } else if (selector_a_4 == ON) {  arm1_wave = 3;
-      } else if (selector_a_5 == ON) {  arm1_wave = 4;
-      }
-      if (selector_b_1 == ON) {         arm2_wave = 0;
-      } else if (selector_b_2 == ON) {  arm2_wave = 1;
-      } else if (selector_b_3 == ON) {  arm2_wave = 2;
-      } else if (selector_b_4 == ON) {  arm2_wave = 3;
-      } else if (selector_b_5 == ON) {  arm2_wave = 4;
-      }
-    } // end read wave values
+    if (selector_b_1 == ON)         arm2_wave = 0;
+    else if (selector_b_2 == ON)    arm2_wave = 1;
+    else if (selector_b_3 == ON)    arm2_wave = 2;
+    else if (selector_b_4 == ON)    arm2_wave = 3;
+    else if (selector_b_5 == ON)    arm2_wave = 4;
+
 
     button_a_amp_up      = digitalRead(BUTTON_A_FREQ_UP);
     button_a_amp_down    = digitalRead(BUTTON_A_FREQ_DOWN);
@@ -406,32 +374,30 @@ void loop() {
     button_b_period_up   = digitalRead(BUTTON_B_PERIOD_UP);
     button_b_period_down = digitalRead(BUTTON_B_PERIOD_DOWN);
 
-    if (button_a_amp_up == ON)            arm1_amp = get_amp(arm1_amp + 1);
-    else if (button_a_amp_down == ON)     arm1_amp = get_amp(arm1_amp - 1);
-    
-    if (button_a_period_up == ON)             arm1_period = get_period(arm1_period + 1);
-    else if (button_a_period_down == ON)      arm1_period = get_period(arm1_period - 1);
-    
-    if (button_b_amp_up == ON) {
-      Serial.println("button_b_amp_up");
-    }
-    if (button_b_amp_down == ON) {
-      Serial.println("button_b_amp_down");
-    }
-    if (button_b_period_up == ON) {
-      Serial.println("button_b_period_up");
-    }
-    if (button_b_period_down == ON) {
-      Serial.println("button_b_period_down");
-    }
+    if (button_a_amp_up == ON && arm1_amp < MAX_AMP)                    arm1_amp += 1;
+    else if (button_a_amp_down == ON && arm1_amp > MIN_AMP)             arm1_amp -= 1;
 
-    // change LCD status
-    if (button_change == true) {
-      lcd_status = get_status(Arm1Speed, PlatterSpeed, Arm2Speed);
-      lcd.setCursor(0, 0);
-      lcd.print(lcd_status);
+    if (button_a_period_up == ON && arm1_period < MAX_PERIOD)           arm1_period += 1;
+    else if (button_a_period_down == ON && arm1_period > MIN_PERIOD)    arm1_period -= 1;
+
+    if (button_b_amp_up == ON && arm2_amp < MAX_AMP)                    arm2_amp += 1;
+    else if (button_b_amp_down == ON && arm2_amp > MIN_AMP)             arm2_amp -= 1;
+
+    if (button_b_period_up == ON && arm2_period < MAX_PERIOD)           arm2_period += 1;
+    else if (button_b_period_down == ON && arm2_period > MIN_PERIOD)    arm2_period -= 1;
+
+    if (button_a_amp_up + button_a_amp_down +
+        button_a_period_up + button_a_period_down +
+        button_b_amp_up + button_b_amp_down +
+        button_b_period_up + button_b_period_down +
+        button_1_state + button_2_state + button_4_state + button_5_state + button_7_state + button_8_state < 14 ||
+        arm1_wave != prev_arm1_wave || arm2_wave != prev_arm2_wave) {
+      // a button has been pressed
+      prev_arm1_wave = arm1_wave;
+      prev_arm2_wave = arm2_wave;
+
+      lcd_display(get_status(), get_wave_status());
       delay(100);
-      button_change = false;
     }
   }
 }
