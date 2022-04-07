@@ -41,12 +41,12 @@ const int SELECTOR_B_3 = 39;
 const int SELECTOR_B_4 = 37;
 const int SELECTOR_B_5 = 35;
 
-const int BUTTON_A_FREQ_UP = 22;
-const int BUTTON_A_FREQ_DOWN = 24;
+const int BUTTON_A_AMP_UP = 22;
+const int BUTTON_A_AMP_DOWN = 24;
 const int BUTTON_A_PERIOD_UP = 26;
 const int BUTTON_A_PERIOD_DOWN = 28;
-const int BUTTON_B_FREQ_UP = 23;
-const int BUTTON_B_FREQ_DOWN = 25;
+const int BUTTON_B_AMP_UP = 23;
+const int BUTTON_B_AMP_DOWN = 25;
 const int BUTTON_B_PERIOD_UP = 27;
 const int BUTTON_B_PERIOD_DOWN = 29;
 
@@ -142,7 +142,7 @@ void setup() {
    */
 
   // buttons
-  pinMode(START_BUTTON, INPUT_PULLUP);
+  pinMode(START_BUTTON,         INPUT_PULLUP);
 
   // pause startup if START_BUTTON is pushed
   start_button = digitalRead(START_BUTTON);
@@ -153,33 +153,33 @@ void setup() {
   }
   lcd_display("Starting...", " ");
 
-  pinMode(BUTTON_1, INPUT_PULLUP);
-  pinMode(BUTTON_2, INPUT_PULLUP);
-  pinMode(BUTTON_3, INPUT_PULLUP);
-  pinMode(BUTTON_4, INPUT_PULLUP);
-  pinMode(BUTTON_5, INPUT_PULLUP);
-  pinMode(BUTTON_6, INPUT_PULLUP);
-  pinMode(BUTTON_7, INPUT_PULLUP);
-  pinMode(BUTTON_8, INPUT_PULLUP);
-  pinMode(BUTTON_9, INPUT_PULLUP);
+  pinMode(BUTTON_1,             INPUT_PULLUP);
+  pinMode(BUTTON_2,             INPUT_PULLUP);
+  pinMode(BUTTON_3,             INPUT_PULLUP);
+  pinMode(BUTTON_4,             INPUT_PULLUP);
+  pinMode(BUTTON_5,             INPUT_PULLUP);
+  pinMode(BUTTON_6,             INPUT_PULLUP);
+  pinMode(BUTTON_7,             INPUT_PULLUP);
+  pinMode(BUTTON_8,             INPUT_PULLUP);
+  pinMode(BUTTON_9,             INPUT_PULLUP);
 
-  pinMode(SELECTOR_A_1, INPUT_PULLUP);
-  pinMode(SELECTOR_A_2, INPUT_PULLUP);
-  pinMode(SELECTOR_A_3, INPUT_PULLUP);
-  pinMode(SELECTOR_A_4, INPUT_PULLUP);
-  pinMode(SELECTOR_A_5, INPUT_PULLUP);
-  pinMode(SELECTOR_B_1, INPUT_PULLUP);
-  pinMode(SELECTOR_B_2, INPUT_PULLUP);
-  pinMode(SELECTOR_B_3, INPUT_PULLUP);
-  pinMode(SELECTOR_B_4, INPUT_PULLUP);
-  pinMode(SELECTOR_B_5, INPUT_PULLUP);
+  pinMode(SELECTOR_A_1,         INPUT_PULLUP);
+  pinMode(SELECTOR_A_2,         INPUT_PULLUP);
+  pinMode(SELECTOR_A_3,         INPUT_PULLUP);
+  pinMode(SELECTOR_A_4,         INPUT_PULLUP);
+  pinMode(SELECTOR_A_5,         INPUT_PULLUP);
+  pinMode(SELECTOR_B_1,         INPUT_PULLUP);
+  pinMode(SELECTOR_B_2,         INPUT_PULLUP);
+  pinMode(SELECTOR_B_3,         INPUT_PULLUP);
+  pinMode(SELECTOR_B_4,         INPUT_PULLUP);
+  pinMode(SELECTOR_B_5,         INPUT_PULLUP);
 
-  pinMode(BUTTON_A_FREQ_UP,     INPUT_PULLUP);
-  pinMode(BUTTON_A_FREQ_DOWN,   INPUT_PULLUP);
+  pinMode(BUTTON_A_AMP_UP,      INPUT_PULLUP);
+  pinMode(BUTTON_A_AMP_DOWN,    INPUT_PULLUP);
   pinMode(BUTTON_A_PERIOD_UP,   INPUT_PULLUP);
   pinMode(BUTTON_A_PERIOD_DOWN, INPUT_PULLUP);
-  pinMode(BUTTON_B_FREQ_UP,     INPUT_PULLUP);
-  pinMode(BUTTON_B_FREQ_DOWN,   INPUT_PULLUP);
+  pinMode(BUTTON_B_AMP_UP,      INPUT_PULLUP);
+  pinMode(BUTTON_B_AMP_DOWN,    INPUT_PULLUP);
   pinMode(BUTTON_B_PERIOD_UP,   INPUT_PULLUP);
   pinMode(BUTTON_B_PERIOD_DOWN, INPUT_PULLUP);
 
@@ -376,12 +376,12 @@ void loop() {
     else if (selector_b_5 == ON)    arm2_wave = 4;
 
 
-    button_a_amp_up      = digitalRead(BUTTON_A_FREQ_UP);
-    button_a_amp_down    = digitalRead(BUTTON_A_FREQ_DOWN);
+    button_a_amp_up      = digitalRead(BUTTON_A_AMP_UP);
+    button_a_amp_down    = digitalRead(BUTTON_A_AMP_DOWN);
     button_a_period_up   = digitalRead(BUTTON_A_PERIOD_UP);
     button_a_period_down = digitalRead(BUTTON_A_PERIOD_DOWN);
-    button_b_amp_up      = digitalRead(BUTTON_B_FREQ_UP);
-    button_b_amp_down    = digitalRead(BUTTON_B_FREQ_DOWN);
+    button_b_amp_up      = digitalRead(BUTTON_B_AMP_UP);
+    button_b_amp_down    = digitalRead(BUTTON_B_AMP_DOWN);
     button_b_period_up   = digitalRead(BUTTON_B_PERIOD_UP);
     button_b_period_down = digitalRead(BUTTON_B_PERIOD_DOWN);
 
