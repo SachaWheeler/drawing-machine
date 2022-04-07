@@ -44,7 +44,7 @@ const int BUTTON_B_FREQ_DOWN = 25;
 const int BUTTON_B_PERIOD_UP = 27;
 const int BUTTON_B_PERIOD_DOWN = 29;
 
-int button_a_freq_up = 0, button_a_freq_down = 0, button_a_period_up = 0, button_a_period_down = 0, button_b_freq_up = 0, button_b_freq_down = 0, button_b_period_up = 0, button_b_period_down = 0;
+int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0, button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
 int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0, selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
 long selectorMillis = 0;
 const long SELECTOR_INTERVAL = 500;
@@ -69,6 +69,11 @@ const int MAX_ARM1_SPEED    = 255;
 const int MAX_ARM2_SPEED    = 255;
 const int MOTOR_MIN         = 55;
 
+const int MIN_AMP = 5;
+const int MAX_AMP = 100;
+const int MIN_PERIOD = 1;
+const int MAX_PERIOD = 120;
+
 bool motorsOn = false;
 int start_button;
 
@@ -77,8 +82,8 @@ bool button_change = false;
 
 const char *Waves[] = {"None", "Square", "Saw",  "Triangle", "Sine"};
 
-// int arm1_wave = 0, arm2_wave = 0, arm1_period = 1, arm2_period = 1, arm1_amp = 1, arm2_amp = 1;
-unsigned int arm1_wave = 0, arm1_period = 1, arm1_amp = 1; // testing
+unsigned int arm1_wave = 0, arm2_wave = 0, arm1_period = 1, arm2_period = 1, arm1_amp = 1, arm2_amp = 1;
+// unsigned int arm1_wave = 0, arm1_period = 1, arm1_amp = 1; // testing
 String wave_status; // testing
 
 String lcd_status;
@@ -91,6 +96,18 @@ const bool RUN_MOTORS = true; // change this to false for testing without motors
 
 String get_status(int Arm1Speed, int PlatterSpeed, int Arm2Speed) {
   return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
+}
+
+unsigned int get_amp(int amplitude){
+  if(amplitude > MAX_AMP) return MAX_AMP;
+  else if (amplitude < MIN_AMP) return MIN_AMP;
+  else return amplitude;
+}
+
+unsigned int get_period(int period){
+  if(period > MAX_PERIOD) return MAX_PERIOD;
+  else if (period < MIN_PERIOD) return MIN_PERIOD;
+  else return period;
 }
 
 void setup() {
@@ -186,9 +203,9 @@ void loop() {
     */
 
     // testing vars
-    arm1_wave = 3;
-    arm1_period = 500; //milliseconds
-    arm1_amp = 40;
+    // arm1_wave = 3;
+    // arm1_period = 500; //milliseconds
+    // arm1_amp = 40;
 
     currentMillis = millis();
     duration = int(currentMillis - startMillis);
@@ -351,8 +368,7 @@ void loop() {
       analogWrite(Arm2Pin, 0);
     }
 
-    if (currentMillis - selectorMillis >= SELECTOR_INTERVAL) {
-      // only run every SELECTOR_INTERVAL (500) millis
+    if (currentMillis - selectorMillis >= SELECTOR_INTERVAL) {  // only run every SELECTOR_INTERVAL (500) millis
       selectorMillis = currentMillis;
 
       // set the waves
@@ -367,83 +383,40 @@ void loop() {
       selector_b_4 = digitalRead(SELECTOR_B_4);
       selector_b_5 = digitalRead(SELECTOR_B_5);
 
-      /*
-            These are giving a false ON (LOW) signal. test connection
+      if (selector_a_1 == ON) {         arm1_wave = 0;
+      } else if (selector_a_2 == ON) {  arm1_wave = 1;
+      } else if (selector_a_3 == ON) {  arm1_wave = 2;
+      } else if (selector_a_4 == ON) {  arm1_wave = 3;
+      } else if (selector_a_5 == ON) {  arm1_wave = 4;
+      }
+      if (selector_b_1 == ON) {         arm2_wave = 0;
+      } else if (selector_b_2 == ON) {  arm2_wave = 1;
+      } else if (selector_b_3 == ON) {  arm2_wave = 2;
+      } else if (selector_b_4 == ON) {  arm2_wave = 3;
+      } else if (selector_b_5 == ON) {  arm2_wave = 4;
+      }
+    } // end read wave values
 
-
-        08:21:16.717 -> selector_a_4 //  a4 is giving false positives (ON, LOW
-
-      */
-      if (selector_a_1 == ON) {
-        Serial.println("selector_a_1");
-
-      }
-      if (selector_a_2 == ON) {
-        Serial.println("selector_a_2");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_a_3 == ON) {
-        Serial.println("selector_a_3");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_a_4 == ON) { // test connection
-        Serial.println("selector_a_4");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_a_5 == ON) {
-        Serial.println("selector_a_5");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_b_1 == ON) {
-        Serial.println("selector_b_1");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_b_2 == ON) {
-        Serial.println("selector_b_2");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_b_3 == ON) {
-        Serial.println("selector_b_3");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_b_4 == ON) {
-        Serial.println("selector_b_4");
-        delay(BUTTON_PAUSE);
-      }
-      if (selector_b_5 == ON) {
-        Serial.println("selector_b_5");
-        delay(BUTTON_PAUSE);
-      }
-      Serial.println(" ");
-      /*   */
-    }
-
-    button_a_freq_up     = digitalRead(BUTTON_A_FREQ_UP);
-    button_a_freq_down   = digitalRead(BUTTON_A_FREQ_DOWN);
+    button_a_amp_up      = digitalRead(BUTTON_A_FREQ_UP);
+    button_a_amp_down    = digitalRead(BUTTON_A_FREQ_DOWN);
     button_a_period_up   = digitalRead(BUTTON_A_PERIOD_UP);
     button_a_period_down = digitalRead(BUTTON_A_PERIOD_DOWN);
-    button_b_freq_up     = digitalRead(BUTTON_B_FREQ_UP);
-    button_b_freq_down   = digitalRead(BUTTON_B_FREQ_DOWN);
+    button_b_amp_up      = digitalRead(BUTTON_B_FREQ_UP);
+    button_b_amp_down    = digitalRead(BUTTON_B_FREQ_DOWN);
     button_b_period_up   = digitalRead(BUTTON_B_PERIOD_UP);
     button_b_period_down = digitalRead(BUTTON_B_PERIOD_DOWN);
 
-    if (button_a_freq_up == ON) {
-      Serial.println("button_a_freq_up");
+    if (button_a_amp_up == ON)            arm1_amp = get_amp(arm1_amp + 1);
+    else if (button_a_amp_down == ON)     arm1_amp = get_amp(arm1_amp - 1);
+    
+    if (button_a_period_up == ON)             arm1_period = get_period(arm1_period + 1);
+    else if (button_a_period_down == ON)      arm1_period = get_period(arm1_period - 1);
+    
+    if (button_b_amp_up == ON) {
+      Serial.println("button_b_amp_up");
     }
-    if (button_a_freq_down == ON) {
-      Serial.println("button_a_freq_down");
-    }
-    if (button_a_period_up == ON) {
-      Serial.println("button_a_period_up");
-    }
-    if (button_a_period_down == ON) {
-      Serial.println("button_a_period_down");
-    }
-    if (button_b_freq_up == ON) {
-      Serial.println("button_b_freq_up");
-    }
-    if (button_b_freq_down == ON) {
-      Serial.println("button_b_freq_down");
+    if (button_b_amp_down == ON) {
+      Serial.println("button_b_amp_down");
     }
     if (button_b_period_up == ON) {
       Serial.println("button_b_period_up");
