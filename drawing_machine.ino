@@ -8,8 +8,11 @@ const int rs = 12, en = 11, d4 = 9, d5 = 8, d6 = 7, d7 = 6; // 2, 3, 4, 5 become
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // SD vars
-const int SD_CS = 18, SD_CLK = 19 ,SD_MOSI = 20, SD_MISO = 21;
+const int SD_CS = 18, SD_CLK = 19 , SD_MOSI = 20, SD_MISO = 21;
 File dataFile;
+const String DATA_FILE = "data.txt";
+//String saved_data;
+int saved_data; // = "0,71,20,996.40,15";
 
 // motors
 const int Arm2Pin    = 2;
@@ -53,7 +56,6 @@ const int BUTTON_B_PERIOD_DOWN = 29;
 int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0, button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
 int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0, selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
 long selectorMillis = 0;
-const long SELECTOR_INTERVAL = 500;
 
 const int BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
 
@@ -123,23 +125,17 @@ void lcd_display(String line_1, String line_2) {
   lcd.print(line_2);
 }
 
+String get_data_format() {
+  // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
+  return String(PlatterSpeed) + "," + String(Arm1Speed) + "," + String(arm1_period) + "," + String(arm1_amp) + "," + String(Arm2Speed) + "," + String(arm2_period) + "," + String(arm2_amp);
+}
+
 void setup() {
   // LCD
   lcd.begin(16, 2);
 
   // SD card
-  SD.begin(SD_CS);
-  dataFile = SD.open("data.txt", FILE_WRITE);
-
-  /* write using: dataFile.write(data);
-   *  
-   *  dataFile.print(data);
-      dataFile.println(data); // followed by a new line
-
-      dataFile.read();
-
-   *  
-   */
+  // SD.begin(SD_CS);
 
   // buttons
   pinMode(START_BUTTON,         INPUT_PULLUP);
@@ -189,6 +185,54 @@ void setup() {
   pinMode(PlatterPin, OUTPUT);
 
   Serial.begin(9600);
+  while (!Serial);
+  /*
+
+  // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
+  //if (SD.exists(DATA_FILE)) {
+  //    Serial.write("we have a data file");
+  dataFile = SD.open(DATA_FILE);
+  Serial.write(dtaFile);
+  if (dataFile) {
+    while (dataFile.available()) {
+      saved_data = dataFile.read();
+    }
+    Serial.write(saved_data);
+    dataFile.close();
+  }
+  //  }else{
+  //Serial.write("no data file");
+  //dataFile = SD.open(DATA_FILE, FILE_WRITE);
+  //Serial.println(get_data_format());
+  //dataFile.println(get_data_format());
+  //dataFile.close();
+  //Serial.println("done writing.");
+  //}
+
+   write using: dataFile.write(data);
+
+      dataFile.print(data);
+      dataFile.println(data); // followed by a new line
+
+      dataFile.read();
+
+      if datafile exists:
+        read data from file
+        parse data
+        set speeds, period and aplitudes from data
+
+        int PlatterSpeed = 60; // initial variables, will change
+        int Arm1Speed    = 150;
+        int Arm2Speed    = 150;
+
+        unsigned int arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
+              arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
+
+
+
+  */
+
+
   startMillis = millis();  //initial start time
 
   lcd_display(get_status(), get_wave_status());
