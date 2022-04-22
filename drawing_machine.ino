@@ -15,9 +15,9 @@ const String DATA_FILE = "data.txt";
 int saved_data; // = "0,71,20,996.40,15";
 
 // motors
-const int Arm2Pin    = 2;
-const int PlatterPin = 3;
-const int Arm1Pin    = 4;
+const int ARM2    = 2;
+const int PLATTER = 3;
+const int ARM1    = 4;
 
 // control panel 1
 const int START_BUTTON = 34; // start button
@@ -180,9 +180,9 @@ void setup() {
   pinMode(BUTTON_B_PERIOD_DOWN, INPUT_PULLUP);
 
   // motors
-  pinMode(Arm1Pin, OUTPUT);
-  pinMode(Arm2Pin, OUTPUT);
-  pinMode(PlatterPin, OUTPUT);
+  pinMode(ARM1, OUTPUT);
+  pinMode(ARM2, OUTPUT);
+  pinMode(PLATTER, OUTPUT);
 
   Serial.begin(9600);
   while (!Serial);
@@ -334,9 +334,9 @@ void loop() {
   */
 
   if (start_button == ON && motorsOn == false) { // start the motors
-    analogWrite(PlatterPin, PlatterSpeed);
-    analogWrite(Arm1Pin, Arm1Speed);
-    analogWrite(Arm2Pin, Arm2Speed);
+    analogWrite(PLATTER, PlatterSpeed);
+    analogWrite(ARM1, Arm1Speed);
+    analogWrite(ARM2, Arm2Speed);
     Serial.println("motors started");
 
     motorsOn = true;
@@ -349,9 +349,9 @@ void loop() {
 
   if (start_button == OFF) {
     if (motorsOn == true) { // stop the motors
-      analogWrite(PlatterPin, 0);
-      analogWrite(Arm1Pin, 0);
-      analogWrite(Arm2Pin, 0);
+      analogWrite(PLATTER, 0);
+      analogWrite(ARM1, 0);
+      analogWrite(ARM2, 0);
       Serial.println("motors stopped");
 
       motorsOn = false;
@@ -382,17 +382,17 @@ void loop() {
     if (button_3_state == ON) { // Arm1
       int advance_speed = int(Arm1Speed / 2);
       if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
-      analogWrite(Arm1Pin, advance_speed);
+      analogWrite(ARM1, advance_speed);
       while (digitalRead(BUTTON_3) == ON);
-      analogWrite(Arm1Pin, 0);
+      analogWrite(ARM1, 0);
     }
 
     if (button_9_state == ON) { // Arm2
       int advance_speed = int(Arm2Speed / 2);
       if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
-      analogWrite(Arm2Pin, advance_speed);
+      analogWrite(ARM2, advance_speed);
       while (digitalRead(BUTTON_9) == ON);
-      analogWrite(Arm2Pin, 0);
+      analogWrite(ARM2, 0);
     }
 
     // set the waves
