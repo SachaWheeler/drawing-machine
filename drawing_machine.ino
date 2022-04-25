@@ -113,20 +113,22 @@ double get_rpm_from_voltage(double voltage, int motor) {
   }
   double x = log10(log10(log10(voltage)));
   double rpm = (SLOPE * x) + SHIFT;
-  char rpm_str[7];
-  dtostrf(rpm, 6, 3, rpm_str);
-  //Serial.println("voltage: " + String(x) + " x: " + x + " RPM: " +  rpm_str);
   return rpm;
 }
 
 String get_status() {
-  // return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
   double arm1_rpm = get_rpm_from_voltage(Arm1Speed, ARM1);
+  int arm1_precision = 3 - log10(arm1_rpm);
+  
   double arm2_rpm = get_rpm_from_voltage(Arm2Speed, ARM2);
+  int arm2_precision = 3 - log10(arm2_rpm);
+  
   double platter_rpm = get_rpm_from_voltage(PlatterSpeed, PLATTER);
-
-  String str = String(arm1_rpm, 3) + " " + String(platter_rpm, 3) + " " + String(arm2_rpm, 3);
-  str.replace("0.", ".");
+  int platter_precision = 3 - log10(platter_rpm);
+  
+  //Serial.println(String(arm1_precision) + " " + String(platter_precision) + " " + String(arm2_precision));
+  String str = String(arm1_rpm, arm1_precision) + " " + String(platter_rpm, platter_precision) + " " + String(arm2_rpm, arm2_precision);
+  //str.replace("0.", ".");
   return str;
 }
 
