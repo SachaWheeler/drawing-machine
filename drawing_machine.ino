@@ -126,14 +126,13 @@ String get_status() {
   double platter_rpm = get_rpm_from_voltage(PlatterSpeed, PLATTER);
   int platter_precision = 3 - log10(platter_rpm);
   
-  //Serial.println(String(arm1_precision) + " " + String(platter_precision) + " " + String(arm2_precision));
   String str = String(arm1_rpm, arm1_precision) + " " + String(platter_rpm, platter_precision) + " " + String(arm2_rpm, arm2_precision);
   //str.replace("0.", ".");
   return str;
 }
 
 String get_wave_status() {
-  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + ":" + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + ": s" + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
 }
 
 unsigned int get_amp(int amplitude) {
@@ -156,8 +155,6 @@ void lcd_display(String line_1, String line_2) {
 }
 
 String get_data_format() {
-  // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
-  //get_rpm_from_voltage(PlatterSpeed);
   return String(PlatterSpeed) + "," + String(Arm1Speed) + "," + String(arm1_period) + "," + String(arm1_amp) + "," + String(Arm2Speed) + "," + String(arm2_period) + "," + String(arm2_amp);
 }
 
