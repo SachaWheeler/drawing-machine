@@ -64,6 +64,10 @@ int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed    = 150;
 int Arm2Speed    = 150;
 
+// RPMs
+double SLOPE;
+double SHIFT;
+
 unsigned int adjusted_platter_speed;
 unsigned int adjusted_arm1_speed;
 unsigned int adjusted_arm2_speed;
@@ -98,8 +102,32 @@ const unsigned long PERIOD = 100;  // milliseconds
 
 const bool ON = LOW, OFF = HIGH;
 
+double get_rpm_from_voltage(double voltage, int motor) {
+  // RPM = 1.01 * x + 0.857, R^2 = 0.986
+  if (motor == ARM1 || motor == ARM2) {
+     SLOPE = 31.1159;
+     SHIFT = 22.5274;
+  } else if (motor == PLATTER) {
+     SLOPE = 1.0112;
+     SHIFT = 0.8574;
+  }
+  double x = log10(log10(log10(voltage)));
+  double rpm = (SLOPE * x) + SHIFT;
+  char rpm_str[7];
+  dtostrf(rpm, 6, 3, rpm_str);
+  //Serial.println("voltage: " + String(x) + " x: " + x + " RPM: " +  rpm_str);
+  return rpm;
+}
+
 String get_status() {
-  return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
+  // return "A" + String(Arm1Speed) + " B" + PlatterSpeed + " C" + Arm2Speed + "   ";
+  double arm1_rpm = get_rpm_from_voltage(Arm1Speed, ARM1);
+  double arm2_rpm = get_rpm_from_voltage(Arm2Speed, ARM2);
+  double platter_rpm = get_rpm_from_voltage(PlatterSpeed, PLATTER);
+
+  String str = String(arm1_rpm, 3) + " " + String(platter_rpm, 3) + " " + String(arm2_rpm, 3);
+  str.replace("0.", ".");
+  return str;
 }
 
 String get_wave_status() {
@@ -127,6 +155,7 @@ void lcd_display(String line_1, String line_2) {
 
 String get_data_format() {
   // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
+  //get_rpm_from_voltage(PlatterSpeed);
   return String(PlatterSpeed) + "," + String(Arm1Speed) + "," + String(arm1_period) + "," + String(arm1_amp) + "," + String(Arm2Speed) + "," + String(arm2_period) + "," + String(arm2_amp);
 }
 
@@ -188,28 +217,28 @@ void setup() {
   while (!Serial);
   /*
 
-  // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
-  //if (SD.exists(DATA_FILE)) {
-  //    Serial.write("we have a data file");
-  dataFile = SD.open(DATA_FILE);
-  Serial.write(dtaFile);
-  if (dataFile) {
+    // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
+    //if (SD.exists(DATA_FILE)) {
+    //    Serial.write("we have a data file");
+    dataFile = SD.open(DATA_FILE);
+    Serial.write(dtaFile);
+    if (dataFile) {
     while (dataFile.available()) {
       saved_data = dataFile.read();
     }
     Serial.write(saved_data);
     dataFile.close();
-  }
-  //  }else{
-  //Serial.write("no data file");
-  //dataFile = SD.open(DATA_FILE, FILE_WRITE);
-  //Serial.println(get_data_format());
-  //dataFile.println(get_data_format());
-  //dataFile.close();
-  //Serial.println("done writing.");
-  //}
+    }
+    //  }else{
+    //Serial.write("no data file");
+    //dataFile = SD.open(DATA_FILE, FILE_WRITE);
+    //Serial.println(get_data_format());
+    //dataFile.println(get_data_format());
+    //dataFile.close();
+    //Serial.println("done writing.");
+    //}
 
-   write using: dataFile.write(data);
+    write using: dataFile.write(data);
 
       dataFile.print(data);
       dataFile.println(data); // followed by a new line
