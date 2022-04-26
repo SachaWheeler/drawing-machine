@@ -19,9 +19,16 @@ const int ARM2    = 2;
 const int PLATTER = 3;
 const int ARM1    = 4;
 
+// waves
+const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
+const int WAVE_NONE     = 1;
+const int WAVE_SQUARE   = 2;
+const int WAVE_SAW      = 3;
+const int WAVE_TRIANGLE = 4;
+const int WAVE_SINE     = 5;
+
 // control panel 1
 const int START_BUTTON = 34; // start button
-
 const int BUTTON_1 = 36;     // row 1 col 1
 const int BUTTON_2 = 38;     // row 2 col 1
 const int BUTTON_3 = 40;     // row 3 col 1
@@ -53,8 +60,10 @@ const int BUTTON_B_AMP_DOWN = 25;
 const int BUTTON_B_PERIOD_UP = 27;
 const int BUTTON_B_PERIOD_DOWN = 29;
 
-int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0, button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
-int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0, selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
+int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0,
+    button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
+int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0,
+    selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
 long selectorMillis = 0;
 
 const int BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
@@ -64,16 +73,21 @@ int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed    = 150;
 int Arm2Speed    = 150;
 
+int factors[3];
+const int ARM1_FACTORS[3] = {235, -203, 45};       // 235 + -203x + 45x^2 where x is log10(voltage)
+const int ARM2_FACTORS[3] = {235, -203, 45};
+const int PLATTER_FACTORS[3] = {2173, -1766, 384}; // 2173 + -1766x + 384x^2 where x is log10(voltage)
+
 // RPMs
-double SLOPE;
-double SHIFT;
+double REG_SLOPE;
+double REG_SHIFT;
 
 unsigned int adjusted_platter_speed;
 unsigned int adjusted_arm1_speed;
 unsigned int adjusted_arm2_speed;
 unsigned int duration;
 unsigned int remainder;
-float slope;
+float period_slope;
 unsigned int adjustment;
 
 const int MAX_PLATTER_SPEED = 255;
@@ -89,50 +103,47 @@ const int MAX_PERIOD = 120;
 bool motorsOn = false;
 int start_button;
 
-int button_1_state = 0, button_2_state = 0, button_3_state = 0, button_4_state = 0, button_5_state = 0, button_6_state = 0, button_7_state = 0, button_8_state = 0, button_9_state = 0;
-
-const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
+int button_1_state = 0, button_2_state = 0, button_3_state = 0,
+    button_4_state = 0, button_5_state = 0, button_6_state = 0,
+    button_7_state = 0, button_8_state = 0, button_9_state = 0;
 
 unsigned int arm1_wave = 0, arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
              arm2_wave = 0, arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
-unsigned int prev_arm1_wave = arm1_wave, prev_arm2_wave = arm2_wave;
+unsigned int prev_arm1_wave = arm1_wave,
+             prev_arm2_wave = arm2_wave;
 
 unsigned long startMillis, stopMillis, currentMillis;
 const unsigned long PERIOD = 100;  // milliseconds
 
-const bool ON = LOW, OFF = HIGH;
+const bool ON = LOW,
+           OFF = HIGH;
 
-double get_rpm_from_voltage(double voltage, int motor) {
-  // RPM = 1.01 * x + 0.857, R^2 = 0.986
+String get_rot_from_voltage(double voltage, int motor) {
+  // RPM = 1.01 * x + 0.857, R^2 = 0.986 - https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
+  double x = log10(voltage);
   if (motor == ARM1 || motor == ARM2) {
-     SLOPE = 31.1159;
-     SHIFT = 22.5274;
+    factors = ARM1_FACTORS;
   } else if (motor == PLATTER) {
-     SLOPE = 1.0112;
-     SHIFT = 0.8574;
+    factors = PLATTER_FACTORS;
   }
-  double x = log10(log10(log10(voltage)));
-  double rpm = (SLOPE * x) + SHIFT;
-  return rpm;
+
+  double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
+  int precision = 2 - int(log10(rotation));
+  //Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
+  return String(rotation, precision);
 }
 
 String get_status() {
-  double arm1_rpm = get_rpm_from_voltage(Arm1Speed, ARM1);
-  int arm1_precision = 3 - log10(arm1_rpm);
-  
-  double arm2_rpm = get_rpm_from_voltage(Arm2Speed, ARM2);
-  int arm2_precision = 3 - log10(arm2_rpm);
-  
-  double platter_rpm = get_rpm_from_voltage(PlatterSpeed, PLATTER);
-  int platter_precision = 3 - log10(platter_rpm);
-  
-  String str = String(arm1_rpm, arm1_precision) + " " + String(platter_rpm, platter_precision) + " " + String(arm2_rpm, arm2_precision);
-  //str.replace("0.", ".");
+  String arm1_rot = get_rot_from_voltage(Arm1Speed, ARM1);
+  String arm2_rot = get_rot_from_voltage(Arm2Speed, ARM2);
+  String platter_rot = get_rot_from_voltage(PlatterSpeed, PLATTER);
+
+  String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(arm2_rot);
   return str;
 }
 
 String get_wave_status() {
-  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + ": s" + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + "s " + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period) + "s";
 }
 
 unsigned int get_amp(int amplitude) {
@@ -169,8 +180,7 @@ void setup() {
   pinMode(START_BUTTON,         INPUT_PULLUP);
 
   // pause startup if START_BUTTON is pushed
-  start_button = digitalRead(START_BUTTON);
-  if (start_button == ON) {
+  if (digitalRead(START_BUTTON) == ON) {
     lcd_display("Start button", "must be OFF!");
     while (digitalRead(START_BUTTON) == ON); // wait until turned off
     lcd.clear();
@@ -213,7 +223,8 @@ void setup() {
   pinMode(PLATTER, OUTPUT);
 
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial); // wait until Serial is available
+  
   /*
 
     // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
@@ -255,14 +266,9 @@ void setup() {
 
         unsigned int arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
               arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
-
-
-
   */
 
-
   startMillis = millis();  //initial start time
-
   lcd_display(get_status(), get_wave_status());
 }
 
@@ -302,11 +308,9 @@ void loop() {
     //Serial.println(wave_status);
     Serial.println("remainder: " + String(remainder));
 
-    if (arm1_wave == 0) { // no wave
-
+    if (arm1_wave == WAVE_NONE) { // no wave
       adjusted_arm1_speed = Arm1Speed;
-
-    } else if (arm1_wave == 1) { // square - DONE
+    } else if (arm1_wave == WAVE_SQUARE) { // square - DONE
 
       if (remainder <= int(arm1_period / 2)) { // HIGH
         adjustment = int(arm1_amp / 2);
@@ -315,41 +319,36 @@ void loop() {
       }
       adjusted_arm1_speed = Arm1Speed + adjustment;
 
-    } else if (arm1_wave == 2) { // saw DONE
-
+    } else if (arm1_wave == WAVE_SAW) { // saw DONE
       // ramps up, then snaps back
-      slope = 1000 * arm1_amp / arm1_period;
-      //Serial.println(slope);
-      adjustment = -int(arm1_amp / 2) + int(slope * remainder / 1000);
+      period_slope = 1000 * arm1_amp / arm1_period;
+      //Serial.println(period_slope);
+      adjustment = -int(arm1_amp / 2) + int(period_slope * remainder / 1000);
       adjusted_arm1_speed = Arm1Speed + adjustment;
 
-    } else if (arm1_wave == 3) { // triangle
-
-
+    } else if (arm1_wave == WAVE_TRIANGLE) { // triangle
       /*
               |   /\
               |__/__\___
               | /    \
               |/______\_________
       */
-
-
       // ramps up for half the period, then ramps back down
-      slope = 2 * 1000 * arm1_amp / arm1_period; // half the period so twice the slope
+      period_slope = 2 * 1000 * arm1_amp / arm1_period; // half the period so twice the period_slope
       if (remainder <= int(arm1_period / 2)) { // ASCENDING
         Serial.println("up");
-        adjustment = -int(arm1_amp / 2) + int(slope * remainder / 1000);
+        adjustment = -int(arm1_amp / 2) + int(period_slope * remainder / 1000);
         Serial.println(remainder);
       } else { // DESCENDING
         Serial.println("down");
-        adjustment = -int(arm1_amp / 2) + int(arm1_amp - slope * arm1_period / 1000);
+        adjustment = -int(arm1_amp / 2) + int(arm1_amp - period_slope * arm1_period / 1000);
         Serial.println(arm1_period - remainder);
       }
       adjusted_arm1_speed = Arm1Speed + adjustment;
 
 
 
-    } else if (arm1_wave == 4) { // sine
+    } else if (arm1_wave == WAVE_SINE) { // sine
 
       adjusted_arm1_speed = Arm1Speed;
 
