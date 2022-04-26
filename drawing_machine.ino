@@ -27,6 +27,17 @@ const int WAVE_SAW      = 3;
 const int WAVE_TRIANGLE = 4;
 const int WAVE_SINE     = 5;
 
+const byte SQUARE[8] = {
+  0b00000,
+  0b11111,
+  0b10001,
+  0b10001,
+  0b10001,
+  0b11111,
+  0b00000,
+  0b00000
+};
+
 // control panel 1
 const int START_BUTTON = 34; // start button
 const int BUTTON_1 = 36;     // row 1 col 1
@@ -74,13 +85,6 @@ int Arm1Speed    = 150;
 int Arm2Speed    = 150;
 
 int factors[3];
-const int ARM1_FACTORS[3] = {235, -203, 45};       // 235 + -203x + 45x^2 where x is log10(voltage)
-const int ARM2_FACTORS[3] = {235, -203, 45};
-const int PLATTER_FACTORS[3] = {2173, -1766, 384}; // 2173 + -1766x + 384x^2 where x is log10(voltage)
-
-// RPMs
-double REG_SLOPE;
-double REG_SHIFT;
 
 unsigned int adjusted_platter_speed;
 unsigned int adjusted_arm1_speed;
@@ -122,14 +126,20 @@ String get_rot_from_voltage(double voltage, int motor) {
   // RPM = 1.01 * x + 0.857, R^2 = 0.986 - https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
   double x = log10(voltage);
   if (motor == ARM1 || motor == ARM2) {
-    factors = ARM1_FACTORS;
+    // 235 + -203x + 45x^2 where x is log10(voltage)
+    factors[0] = 235;
+    factors[1] = -203;
+    factors[2] = 45;
   } else if (motor == PLATTER) {
-    factors = PLATTER_FACTORS;
+    // 2173 + -1766x + 384x^2 where x is log10(voltage)
+    factors[0] = 2173;
+    factors[1] = -1766;
+    factors[2] = 384;
   }
 
   double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
   int precision = 2 - int(log10(rotation));
-  //Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
+  Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
   return String(rotation, precision);
 }
 
@@ -143,7 +153,7 @@ String get_status() {
 }
 
 String get_wave_status() {
-  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + "s " + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period) + "s";
+  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
 }
 
 unsigned int get_amp(int amplitude) {
@@ -172,6 +182,7 @@ String get_data_format() {
 void setup() {
   // LCD
   lcd.begin(16, 2);
+  //lcd.createChar(0, SQUARE);
 
   // SD card
   // SD.begin(SD_CS);
