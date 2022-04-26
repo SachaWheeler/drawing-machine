@@ -18,6 +18,7 @@ int saved_data; // = "0,71,20,996.40,15";
 const int ARM2    = 2;
 const int PLATTER = 3;
 const int ARM1    = 4;
+bool motorsOn = false;
 
 // waves
 const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
@@ -26,6 +27,17 @@ const int WAVE_SQUARE   = 2;
 const int WAVE_SAW      = 3;
 const int WAVE_TRIANGLE = 4;
 const int WAVE_SINE     = 5;
+
+const byte NONE[8] = {
+  0b00000,
+  0b00000,
+  0b00000,
+  0b11111,
+  0b00000,
+  0b00000,
+  0b00000,
+  0b00000
+};
 
 const byte SQUARE[8] = {
   0b00000,
@@ -38,38 +50,71 @@ const byte SQUARE[8] = {
   0b00000
 };
 
+const byte SAW[8] = {
+  0b00000,
+  0b10000,
+  0b11000,
+  0b10100,
+  0b10010,
+  0b10001,
+  0b00000,
+  0b00000
+};
+
+const byte TRIANGLE[8] = {
+  0b00000,
+  0b00000,
+  0b00100,
+  0b01010,
+  0b10001,
+  0b00000,
+  0b00000,
+  0b00000
+};
+
+const byte SINE[8] = {
+  0b00000,
+  0b00000,
+  0b00011,
+  0b00100,
+  0b01000,
+  0b11000,
+  0b00000,
+  0b00000
+};
+
 // control panel 1
-const int START_BUTTON = 34; // start button
-const int BUTTON_1 = 36;     // row 1 col 1
-const int BUTTON_2 = 38;     // row 2 col 1
-const int BUTTON_3 = 40;     // row 3 col 1
-const int BUTTON_4 = 42;     // row 1 col 2
-const int BUTTON_5 = 44;     // row 2 col 2
-const int BUTTON_6 = 46;     // row 3 col 2
-const int BUTTON_7 = 48;     // row 1 col 3
-const int BUTTON_8 = 50;     // row 2 col 3
-const int BUTTON_9 = 52;     // row 3 col 3
+const int  START_BUTTON = 34;
+const int  BUTTON_1 = 36;     // row 1 col 1
+const int  BUTTON_2 = 38;     // row 2 col 1
+const int  BUTTON_3 = 40;     // row 3 col 1
+const int  BUTTON_4 = 42;     // row 1 col 2
+const int  BUTTON_5 = 44;     // row 2 col 2
+const int  BUTTON_6 = 46;     // row 3 col 2
+const int  BUTTON_7 = 48;     // row 1 col 3
+const int  BUTTON_8 = 50;     // row 2 col 3
+const int  BUTTON_9 = 52;     // row 3 col 3
 
 // control panel 2
-const int SELECTOR_A_1 = 53; // first selector, first option
-const int SELECTOR_A_2 = 51;
-const int SELECTOR_A_3 = 49;
-const int SELECTOR_A_4 = 47;
-const int SELECTOR_A_5 = 45;
-const int SELECTOR_B_1 = 43;
-const int SELECTOR_B_2 = 41;
-const int SELECTOR_B_3 = 39;
-const int SELECTOR_B_4 = 37;
-const int SELECTOR_B_5 = 35;
+const int  SELECTOR_A_1 = 53; // first selector, first option
+const int  SELECTOR_A_2 = 51;
+const int  SELECTOR_A_3 = 49;
+const int  SELECTOR_A_4 = 47;
+const int  SELECTOR_A_5 = 45;
+const int  SELECTOR_B_1 = 43;
+const int  SELECTOR_B_2 = 41;
+const int  SELECTOR_B_3 = 39;
+const int  SELECTOR_B_4 = 37;
+const int  SELECTOR_B_5 = 35;
 
-const int BUTTON_A_AMP_UP = 22;
-const int BUTTON_A_AMP_DOWN = 24;
-const int BUTTON_A_PERIOD_UP = 26;
-const int BUTTON_A_PERIOD_DOWN = 28;
-const int BUTTON_B_AMP_UP = 23;
-const int BUTTON_B_AMP_DOWN = 25;
-const int BUTTON_B_PERIOD_UP = 27;
-const int BUTTON_B_PERIOD_DOWN = 29;
+const int  BUTTON_A_AMP_UP = 22;
+const int  BUTTON_A_AMP_DOWN = 24;
+const int  BUTTON_A_PERIOD_UP = 26;
+const int  BUTTON_A_PERIOD_DOWN = 28;
+const int  BUTTON_B_AMP_UP = 23;
+const int  BUTTON_B_AMP_DOWN = 25;
+const int  BUTTON_B_PERIOD_UP = 27;
+const int  BUTTON_B_PERIOD_DOWN = 29;
 
 int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0,
     button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
@@ -77,7 +122,7 @@ int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, sele
     selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
 long selectorMillis = 0;
 
-const int BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
+const int  BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
 
 // variables
 int PlatterSpeed = 60; // initial variables, will change
@@ -85,6 +130,7 @@ int Arm1Speed    = 150;
 int Arm2Speed    = 150;
 
 int factors[3];
+int precision;
 
 unsigned int adjusted_platter_speed;
 unsigned int adjusted_arm1_speed;
@@ -94,17 +140,16 @@ unsigned int remainder;
 float period_slope;
 unsigned int adjustment;
 
-const int MAX_PLATTER_SPEED = 255;
-const int MAX_ARM1_SPEED    = 255;
-const int MAX_ARM2_SPEED    = 255;
-const int MOTOR_MIN         = 55;
+const int  MAX_PLATTER_SPEED = 255;
+const int  MAX_ARM1_SPEED    = 255;
+const int  MAX_ARM2_SPEED    = 255;
+const int  MOTOR_MIN         = 55;
 
-const int MIN_AMP    = 5;
+const int  MIN_AMP    = 5;
 const int MAX_AMP    = 100;
 const int MIN_PERIOD = 1;
 const int MAX_PERIOD = 120;
 
-bool motorsOn = false;
 int start_button;
 
 int button_1_state = 0, button_2_state = 0, button_3_state = 0,
@@ -125,7 +170,12 @@ const bool ON = LOW,
 String get_rot_from_voltage(double voltage, int motor) {
   // RPM = 1.01 * x + 0.857, R^2 = 0.986 - https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
   double x = log10(voltage);
-  if (motor == ARM1 || motor == ARM2) {
+  if (motor == ARM1) {
+    // 235 + -203x + 45x^2 where x is log10(voltage)
+    factors[0] = 235;
+    factors[1] = -203;
+    factors[2] = 45;
+  } else if (motor == ARM2) {
     // 235 + -203x + 45x^2 where x is log10(voltage)
     factors[0] = 235;
     factors[1] = -203;
@@ -138,8 +188,11 @@ String get_rot_from_voltage(double voltage, int motor) {
   }
 
   double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
-  int precision = 2 - int(log10(rotation));
-  Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
+
+  if (motorsOn) precision = 0;
+  else          precision = 2 - int(log10(rotation));
+
+  //Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
   return String(rotation, precision);
 }
 
@@ -149,6 +202,9 @@ String get_status() {
   String platter_rot = get_rot_from_voltage(PlatterSpeed, PLATTER);
 
   String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(arm2_rot);
+  if (motorsOn) {
+    str += " " + duration;
+  }
   return str;
 }
 
@@ -175,9 +231,10 @@ void lcd_display(String line_1, String line_2) {
   lcd.print(line_2);
 }
 
-String get_data_format() {
+/*
+  String get_data_format() {
   return String(PlatterSpeed) + "," + String(Arm1Speed) + "," + String(arm1_period) + "," + String(arm1_amp) + "," + String(Arm2Speed) + "," + String(arm2_period) + "," + String(arm2_amp);
-}
+  }*/
 
 void setup() {
   // LCD
@@ -235,7 +292,7 @@ void setup() {
 
   Serial.begin(9600);
   while (!Serial); // wait until Serial is available
-  
+
   /*
 
     // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
@@ -279,7 +336,6 @@ void setup() {
               arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
   */
 
-  startMillis = millis();  //initial start time
   lcd_display(get_status(), get_wave_status());
 }
 
@@ -378,6 +434,7 @@ void loop() {
     Serial.println("motors started");
 
     motorsOn = true;
+    lcd_display(get_status(), get_wave_status());
     startMillis = millis();  // start time
   }
 
