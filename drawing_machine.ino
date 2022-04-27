@@ -384,13 +384,14 @@ int triangle_adjustment(int remainder, int period, int amp) { // remainder in mi
     Serial.println("down");
     adjustment = int((amp / 2) - (period_slope * (remainder / 2)));
   }
-  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
+  // Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
 int sine_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
-  int period_millis = period * 1000;
-  adjustment = int((-amp / 2) + 1);
+  float angular_progress = remainder / 360;
+  adjustment = int((-amp / 2) + sin(angular_progress) * amp);
+  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
