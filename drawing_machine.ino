@@ -8,11 +8,11 @@ const int rs = 12, en = 11, d4 = 9, d5 = 8, d6 = 7, d7 = 6; // 2, 3, 4, 5 become
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // SD vars
-const int SD_CS = 18, SD_CLK = 19 , SD_MOSI = 20, SD_MISO = 21;
-File dataFile;
-const String DATA_FILE = "data.txt";
-//String saved_data;
-int saved_data; // = "0,71,20,996.40,15";
+// const int SD_CS = 18, SD_CLK = 19 , SD_MOSI = 20, SD_MISO = 21;
+// File dataFile;
+// const String DATA_FILE = "data.txt";
+// String saved_data;
+// int saved_data; // = "0,71,20,996.40,15";
 
 // motors
 const int ARM2    = 2;
@@ -143,10 +143,9 @@ unsigned int arm2_remainder;
 float period_slope;
 int adjustment;
 
-const int MAX_PLATTER_SPEED = 255;
-const int MAX_ARM1_SPEED    = 255;
-const int MAX_ARM2_SPEED    = 255;
-const int MOTOR_MIN         = 55;
+// motor speed
+const int MAX_SPEED = 255;
+const int MIN_SPEED = 55;
 
 const int MIN_AMP    = 5;
 const int MAX_AMP    = 100;
@@ -355,10 +354,10 @@ int square_adjustment(int remainder, int period, int amp) { // remainder in mill
 }
 
 int saw_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
-  /*   |   /|    /|   ramps up, then snaps back
-       |__/_|___/_|
-       | /  |  /  |
-       |/___|_/___|*/
+  /*   |   /|   ramps up, then snaps back
+       |__/_|
+       | /  |
+       |/___| */
   int period_millis = period * 1000;
   period_slope = amp / period_millis;
   adjustment = int((-amp / 2) + period_slope * remainder);
@@ -370,7 +369,7 @@ int triangle_adjustment(int remainder, int period, int amp) { // remainder in mi
   /*   |   /\        ramps up for half the period, then ramps back down
        |__/__\___
        | /    \
-       |/______\__*/
+       |/______\__ */
   int period_millis = period * 1000;
   period_slope = 2 * (amp / period_millis); // half the period so twice the period_slope
   if (remainder <= period_millis / 2) { // ASCENDING
@@ -413,8 +412,8 @@ void loop() {
 
     if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
       new_Arm1Speed = Arm1Speed + arm1_adjustment;
-      if (new_Arm1Speed > MAX_ARM1_SPEED) analogWrite(ARM1, MAX_ARM1_SPEED);
-      else if (new_Arm1Speed < MOTOR_MIN) analogWrite(ARM1, 0);
+      if (new_Arm1Speed > MAX_SPEED)      analogWrite(ARM1, MAX_SPEED);
+      else if (new_Arm1Speed < MIN_SPEED) analogWrite(ARM1, 0);
       else                                analogWrite(ARM1, new_Arm1Speed);
       prev_arm1_adjustment = arm1_adjustment;
     }
@@ -429,8 +428,8 @@ void loop() {
 
     if (arm2_adjustment != prev_arm2_adjustment) { // only change sopeeds when we need to
       new_Arm2Speed = Arm2Speed + arm2_adjustment;
-      if (new_Arm2Speed > MAX_ARM2_SPEED) analogWrite(ARM2, MAX_ARM2_SPEED);
-      else if (new_Arm2Speed < MOTOR_MIN) analogWrite(ARM2, 0);
+      if (new_Arm2Speed > MAX_SPEED)      analogWrite(ARM2, MAX_SPEED);
+      else if (new_Arm2Speed < MIN_SPEED) analogWrite(ARM2, 0);
       else                                analogWrite(ARM2, new_Arm2Speed);
       prev_arm2_adjustment = arm2_adjustment;
     }
@@ -483,19 +482,19 @@ void loop() {
     button_8_state = digitalRead(BUTTON_8);
     button_9_state = digitalRead(BUTTON_9);
 
-    if (button_1_state == ON && Arm1Speed < MAX_ARM1_SPEED)         Arm1Speed += 1;
-    else if (button_2_state == ON && Arm1Speed > MOTOR_MIN)         Arm1Speed -= 1;
+    if (button_1_state == ON && Arm1Speed < MAX_SPEED)         Arm1Speed += 1;
+    else if (button_2_state == ON && Arm1Speed > MIN_SPEED)         Arm1Speed -= 1;
 
-    if (button_4_state == ON && PlatterSpeed < MAX_PLATTER_SPEED)   PlatterSpeed += 1;
-    else if (button_5_state == ON && PlatterSpeed > MOTOR_MIN)      PlatterSpeed -= 1;
+    if (button_4_state == ON && PlatterSpeed < MAX_SPEED)   PlatterSpeed += 1;
+    else if (button_5_state == ON && PlatterSpeed > MIN_SPEED)      PlatterSpeed -= 1;
 
-    if (button_7_state == ON && Arm2Speed < MAX_ARM2_SPEED)         Arm2Speed += 1;
-    else if (button_8_state == ON && Arm2Speed > MOTOR_MIN)         Arm2Speed -= 1;
+    if (button_7_state == ON && Arm2Speed < MAX_SPEED)         Arm2Speed += 1;
+    else if (button_8_state == ON && Arm2Speed > MIN_SPEED)         Arm2Speed -= 1;
 
     // advance Arms
     if (button_3_state == ON) { // Arm1
       int advance_speed = int(Arm1Speed / 2);
-      if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
+      if (advance_speed < MIN_SPEED) advance_speed = MIN_SPEED;
       analogWrite(ARM1, advance_speed);
       while (digitalRead(BUTTON_3) == ON);
       analogWrite(ARM1, 0);
@@ -503,7 +502,7 @@ void loop() {
 
     if (button_9_state == ON) { // Arm2
       int advance_speed = int(Arm2Speed / 2);
-      if (advance_speed < MOTOR_MIN) advance_speed = MOTOR_MIN;
+      if (advance_speed < MIN_SPEED) advance_speed = MIN_SPEED;
       analogWrite(ARM2, advance_speed);
       while (digitalRead(BUTTON_9) == ON);
       analogWrite(ARM2, 0);
