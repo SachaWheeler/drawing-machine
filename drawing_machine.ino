@@ -389,7 +389,8 @@ int triangle_adjustment(int remainder, int period, int amp) { // remainder in mi
 }
 
 int sine_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
-  float angular_progress = remainder / 360;
+  int period_millis = period * 1000;
+  float angular_progress = 360 * (remainder / period_millis);
   adjustment = int((-amp / 2) + sin(angular_progress) * amp);
   Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
   return adjustment;
@@ -400,29 +401,6 @@ void loop() {
 
   start_button = digitalRead(START_BUTTON);
   if (start_button == ON && motorsOn == true) { // the motors are running and might need adjustment
-    /*
-       This is where we might adjust the speeds of Arm1Speed and Arm2Speed according to:
-          waveforms (none, square, saw, triangle, sine)
-          frequency
-          amplitude
-       based on startMillis
-
-       none:
-           return current speed
-       square:
-           find out how many freqs there have been since startMillis
-           odd, return MAX_AMP, even, return MIN_AMP
-       saw:
-           start at MAX_AMP, ramp down until MIN_AMP
-           snap back to MAX_AMP
-       triangle:
-           ramp up, then ramp down
-           find out how many freqs there have been since startMillis
-           in the first half of frequency? ramp up until MAX_AMP
-           then ramp down until MIN_AMP
-       sine:
-           plot the sine of currentMillis - startMillis
-    */
 
     currentMillis = millis();
     duration = (currentMillis - startMillis);
@@ -431,51 +409,37 @@ void loop() {
     //Serial.println("arm1 period: " + String(arm1_period) + ", arm2 period:  " + String(arm2_period));
     Serial.println("arm1 period: " + String(arm1_period) + " duration: " + String(duration) + " arm1 remainder: " + String(arm1_remainder)  );
 
-    //Serial.println("arm1 remainder: " + String(arm1_remainder) + " " + " arm2 remainder: " + String(arm2_remainder));
+    if      (arm1_wave == WAVE_NONE)      arm1_adjustment = 0;
+    else if (arm1_wave == WAVE_SQUARE)    arm1_adjustment = square_adjustment(    arm1_remainder, arm1_period, arm1_amp);
+    else if (arm1_wave == WAVE_SAW)       arm1_adjustment = saw_adjustment(       arm1_remainder, arm1_period, arm1_amp);
+    else if (arm1_wave == WAVE_TRIANGLE)  arm1_adjustment = triangle_adjustment(  arm1_remainder, arm1_period, arm1_amp);
+    else if (arm1_wave == WAVE_SINE)      arm1_adjustment = sine_adjustment (     arm1_remainder, arm1_period, arm1_amp);
 
-    if (arm1_wave == WAVE_NONE) { // no wave
-      arm1_adjustment = 0;
-    } else if (arm1_wave == WAVE_SQUARE) { // square - DONE
-      arm1_adjustment = square_adjustment(arm1_remainder,               arm1_period, arm1_amp);
-    } else if (arm1_wave == WAVE_SAW) { // saw
-      Serial.println("saw");
-      arm1_adjustment = Arm1Speed + saw_adjustment(arm1_remainder,      arm1_period, arm1_amp);
-    } else if (arm1_wave == WAVE_TRIANGLE) { // triangle
-      Serial.println("triangle");
-      arm1_adjustment = Arm1Speed + triangle_adjustment(arm1_remainder, arm1_period, arm1_amp);
-    } else if (arm1_wave == WAVE_SINE) { // sine
-      Serial.println("sine");
-      arm1_adjustment = Arm1Speed + sine_adjustment(arm1_remainder,     arm1_period, arm1_amp);
-    }
-
-    // Arm1Speed = arm1_adjustment
     if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
       new_Arm1Speed = Arm1Speed + arm1_adjustment;
-      if (new_Arm1Speed + arm1_adjustment > MAX_ARM1_SPEED) {
-        analogWrite(ARM1, MAX_ARM1_SPEED);
-      } else if (new_Arm1Speed + arm1_adjustment < MOTOR_MIN) {
-        analogWrite(ARM1, 0);
-      } else {
-        analogWrite(ARM1, new_Arm1Speed);
-      }
+      if (new_Arm1Speed > MAX_ARM1_SPEED) analogWrite(ARM1, MAX_ARM1_SPEED);
+      else if (new_Arm1Speed < MOTOR_MIN) analogWrite(ARM1, 0);
+      else                                analogWrite(ARM1, new_Arm1Speed);
       prev_arm1_adjustment = arm1_adjustment;
     }
 
     Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
 
-    if (arm2_wave == WAVE_NONE) { // no wave
-      arm2_adjustment = Arm2Speed;
-    } else if (arm2_wave == WAVE_SQUARE) { // square - DONE
-      arm2_adjustment = Arm2Speed + square_adjustment(arm2_remainder,   arm2_period, arm1_amp);
-    } else if (arm2_wave == WAVE_SAW) { // saw DONE
-      arm2_adjustment = Arm2Speed + saw_adjustment(arm2_remainder,      arm2_period, arm1_amp);
-    } else if (arm2_wave == WAVE_TRIANGLE) { // triangle
-      arm2_adjustment = Arm2Speed + triangle_adjustment(arm2_remainder, arm2_period, arm1_amp);
-    } else if (arm2_wave == WAVE_SINE) { // sine
-      arm2_adjustment = Arm2Speed + sine_adjustment(arm2_remainder,     arm2_period, arm1_amp);
+    if      (arm2_wave == WAVE_NONE)      arm2_adjustment = 0;
+    else if (arm2_wave == WAVE_SQUARE)    arm2_adjustment = square_adjustment(    arm2_remainder, arm2_period, arm2_amp);
+    else if (arm2_wave == WAVE_SAW)       arm2_adjustment = saw_adjustment(       arm2_remainder, arm2_period, arm2_amp);
+    else if (arm2_wave == WAVE_TRIANGLE)  arm2_adjustment = triangle_adjustment(  arm2_remainder, arm2_period, arm2_amp);
+    else if (arm2_wave == WAVE_SINE)      arm2_adjustment = sine_adjustment (     arm2_remainder, arm2_period, arm2_amp);
+
+    if (arm2_adjustment != prev_arm2_adjustment) { // only change sopeeds when we need to
+      new_Arm2Speed = Arm2Speed + arm2_adjustment;
+      if (new_Arm2Speed > MAX_ARM2_SPEED) analogWrite(ARM2, MAX_ARM2_SPEED);
+      else if (new_Arm2Speed < MOTOR_MIN) analogWrite(ARM2, 0);
+      else                                analogWrite(ARM2, new_Arm2Speed);
+      prev_arm2_adjustment = arm2_adjustment;
     }
-    // Arm2Speed = arm2_adjustment
-    //Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
+
+    Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
   }
 
   /*
@@ -483,10 +447,15 @@ void loop() {
   */
 
   if (start_button == ON && motorsOn == false) { // start the motors
-    analogWrite(PLATTER, PlatterSpeed);
-    analogWrite(ARM1, Arm1Speed);
-    analogWrite(ARM2, Arm2Speed);
-    Serial.println("motors started");
+    /*
+        Necessary? The starting voltages might be incorrect depending on waves function choices
+        and the wave function now writes to the motor controls
+
+      analogWrite(PLATTER, PlatterSpeed);
+      analogWrite(ARM1, Arm1Speed);
+      analogWrite(ARM2, Arm2Speed);
+      Serial.println("motors started");
+    */
 
     motorsOn = true;
     lcd_display(get_status(), get_wave_status());
@@ -505,7 +474,6 @@ void loop() {
       Serial.println("motors stopped");
 
       motorsOn = false;
-      stopMillis = millis();  // stop time
     }
 
     // set the speeds
