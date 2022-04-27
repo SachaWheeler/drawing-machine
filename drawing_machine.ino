@@ -131,7 +131,6 @@ int Arm2Speed    = 150;
 int new_Arm1Speed, new_Arm2Speed;
 
 int factors[3];
-int precision;
 
 unsigned int adjusted_platter_speed;
 unsigned int arm1_adjustment;
@@ -192,11 +191,7 @@ String get_rotation(double voltage, int motor) {
   }
 
   double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
-
-  if (motorsOn) precision = 0;
-  else          precision = 2 - int(log10(rotation));
-
-  //Serial.println(String(voltage) + " " + String(rotation) + " " + String(precision) + " " + String(rotation, precision));
+  int precision = 2 - int(log10(rotation));
   return String(rotation, precision);
 }
 
@@ -258,6 +253,7 @@ void setup() {
     lcd.clear();
   }
   lcd_display("Starting...", " ");
+  delay(100);
 
   pinMode(BUTTON_1,             INPUT_PULLUP);
   pinMode(BUTTON_2,             INPUT_PULLUP);
