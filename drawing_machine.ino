@@ -22,11 +22,11 @@ bool motorsOn = false;
 
 // waves
 const char *WAVES[] = {"No", "Sq", "Sa",  "Tr", "Si"};
-const int WAVE_NONE     = 1;
-const int WAVE_SQUARE   = 2;
-const int WAVE_SAW      = 3;
-const int WAVE_TRIANGLE = 4;
-const int WAVE_SINE     = 5;
+const int WAVE_NONE     = 0;
+const int WAVE_SQUARE   = 1;
+const int WAVE_SAW      = 2;
+const int WAVE_TRIANGLE = 3;
+const int WAVE_SINE     = 4;
 
 const byte NONE[8] = {
   0b00000,
@@ -116,10 +116,10 @@ const int  BUTTON_B_AMP_DOWN = 25;
 const int  BUTTON_B_PERIOD_UP = 27;
 const int  BUTTON_B_PERIOD_DOWN = 29;
 
-int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0,
-    button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
-int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0,
-    selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
+unsigned int button_a_amp_up = 0, button_a_amp_down = 0, button_a_period_up = 0, button_a_period_down = 0,
+             button_b_amp_up = 0, button_b_amp_down = 0, button_b_period_up = 0, button_b_period_down = 0;
+unsigned int selector_a_1 = 0, selector_a_2 = 0, selector_a_3 = 0, selector_a_4 = 0, selector_a_5 = 0,
+             selector_b_1 = 0, selector_b_2 = 0, selector_b_3 = 0, selector_b_4 = 0, selector_b_5 = 0;
 long selectorMillis = 0;
 
 const int  BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
@@ -128,18 +128,21 @@ const int  BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
 int PlatterSpeed = 60; // initial variables, will change
 int Arm1Speed    = 150;
 int Arm2Speed    = 150;
+int new_Arm1Speed, new_Arm2Speed;
 
 int factors[3];
 int precision;
 
 unsigned int adjusted_platter_speed;
-unsigned int adjusted_arm1_speed;
-unsigned int adjusted_arm2_speed;
-unsigned int duration;
+unsigned int arm1_adjustment;
+unsigned int prev_arm1_adjustment;
+unsigned int arm2_adjustment;
+unsigned int prev_arm2_adjustment;
+unsigned int duration, duration_s;
 unsigned int arm1_remainder;
 unsigned int arm2_remainder;
 float period_slope;
-unsigned int adjustment;
+int adjustment;
 
 const int MAX_PLATTER_SPEED = 255;
 const int MAX_ARM1_SPEED    = 255;
@@ -340,47 +343,54 @@ void setup() {
   lcd_display(get_status(), get_wave_status());
 }
 
-int get_square_adjustment(int remainder, int period, int amp) {
-  if (remainder <= int(period / 2)) { // HIGH
+int square_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+  /*  |_____     |   firast half HIGH, second half LOW
+      |    |     |
+      |    |_____|
+      | _____ ___|*/
+  int period_millis = period * 1000;
+  if (remainder <= period_millis / 2) { // HIGH
     adjustment = int(amp / 2);
   } else { // LOW
     adjustment = -int(amp / 2);
   }
-  adjustment = Arm1Speed + adjustment;
+  //Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) +",  adj: " + String(adjustment));
   return adjustment;
 }
 
-int get_saw_adjustment(int remainder, int period, int amp) {
-  // ramps up, then snaps back
-  period_slope = 1000 * amp / period;
-  adjustment = -int(amp / 2) + int(period_slope * remainder / 1000);
+int saw_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+  /*   |   /|    /|   ramps up, then snaps back
+       |__/_|___/_|
+       | /  |  /  |
+       |/___|_/___|*/
+  int period_millis = period * 1000;
+  period_slope = amp / period_millis;
+  adjustment = int((-amp / 2) + period_slope * remainder);
+  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
-int get_triangle_adjustment(int remainder, int period, int amp) {
-  /*
-              |   /\
-              |__/__\___
-              | /    \
-              |/______\_________
-  */
-  // ramps up for half the period, then ramps back down
-  period_slope = 2 * 1000 * amp / period; // half the period so twice the period_slope
-  if (remainder <= int(period / 2)) { // ASCENDING
+int triangle_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+  /*   |   /\        ramps up for half the period, then ramps back down
+       |__/__\___
+       | /    \
+       |/______\__*/
+  int period_millis = period * 1000;
+  period_slope = 2 * (amp / period_millis); // half the period so twice the period_slope
+  if (remainder <= period_millis / 2) { // ASCENDING
     Serial.println("up");
-    adjustment = -int(amp / 2) + int(period_slope * remainder / 1000);
-    Serial.println(remainder);
+    adjustment = int((-amp / 2) + (period_slope * remainder));
   } else { // DESCENDING
     Serial.println("down");
-    adjustment = -int(amp / 2) + int(amp - period_slope * period / 1000);
-    Serial.println(period - remainder);
+    adjustment = int((amp / 2) - (period_slope * (remainder / 2)));
   }
+  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
-int get_sine_adjustment(int remainder, int period, int amp) {
-  // calculate adjustment
-  // TODO
+int sine_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+  int period_millis = period * 1000;
+  adjustment = int((-amp / 2) + 1);
   return adjustment;
 }
 
@@ -414,41 +424,57 @@ void loop() {
     */
 
     currentMillis = millis();
-    duration = int(currentMillis - startMillis);
-    arm1_remainder = duration % (arm1_period);
-    arm2_remainder = duration % (arm2_period);
-    Serial.println("arm1 period: " + String(arm1_period) + ", arm2 period:  " + String(arm2_period));
-    Serial.println("duration: " + String(duration) + " " + currentMillis + " " + startMillis);
+    duration = (currentMillis - startMillis);
+    arm1_remainder = duration % (arm1_period * 1000);
+    arm2_remainder = duration % (arm2_period * 1000);
+    //Serial.println("arm1 period: " + String(arm1_period) + ", arm2 period:  " + String(arm2_period));
+    Serial.println("arm1 period: " + String(arm1_period) + " duration: " + String(duration) + " arm1 remainder: " + String(arm1_remainder)  );
 
-    Serial.println("arm1 remainder: " + String(arm1_remainder) + " " + " arm2 remainder: " + String(arm2_remainder));
+    //Serial.println("arm1 remainder: " + String(arm1_remainder) + " " + " arm2 remainder: " + String(arm2_remainder));
 
     if (arm1_wave == WAVE_NONE) { // no wave
-      adjusted_arm1_speed = Arm1Speed;
+      arm1_adjustment = 0;
     } else if (arm1_wave == WAVE_SQUARE) { // square - DONE
-      adjusted_arm1_speed = Arm1Speed + get_square_adjustment(arm1_remainder,   arm1_period, arm1_amp);
-    } else if (arm1_wave == WAVE_SAW) { // saw DONE
-      adjusted_arm1_speed = Arm1Speed + get_saw_adjustment(arm1_remainder,      arm1_period, arm1_amp);
+      arm1_adjustment = square_adjustment(arm1_remainder,               arm1_period, arm1_amp);
+    } else if (arm1_wave == WAVE_SAW) { // saw
+      Serial.println("saw");
+      arm1_adjustment = Arm1Speed + saw_adjustment(arm1_remainder,      arm1_period, arm1_amp);
     } else if (arm1_wave == WAVE_TRIANGLE) { // triangle
-      adjusted_arm1_speed = Arm1Speed + get_triangle_adjustment(arm1_remainder, arm1_period, arm1_amp);
+      Serial.println("triangle");
+      arm1_adjustment = Arm1Speed + triangle_adjustment(arm1_remainder, arm1_period, arm1_amp);
     } else if (arm1_wave == WAVE_SINE) { // sine
-      adjusted_arm1_speed = Arm1Speed + get_sine_adjustment(arm1_remainder,     arm1_period, arm1_amp);
+      Serial.println("sine");
+      arm1_adjustment = Arm1Speed + sine_adjustment(arm1_remainder,     arm1_period, arm1_amp);
     }
-    // Arm1Speed = adjusted_arm1_speed
-    Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(adjusted_arm1_speed));
+
+    // Arm1Speed = arm1_adjustment
+    if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
+      new_Arm1Speed = Arm1Speed + arm1_adjustment;
+      if (new_Arm1Speed + arm1_adjustment > MAX_ARM1_SPEED) {
+        analogWrite(ARM1, MAX_ARM1_SPEED);
+      } else if (new_Arm1Speed + arm1_adjustment < MOTOR_MIN) {
+        analogWrite(ARM1, 0);
+      } else {
+        analogWrite(ARM1, new_Arm1Speed);
+      }
+      prev_arm1_adjustment = arm1_adjustment;
+    }
+
+    Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
 
     if (arm2_wave == WAVE_NONE) { // no wave
-      adjusted_arm2_speed = Arm2Speed;
+      arm2_adjustment = Arm2Speed;
     } else if (arm2_wave == WAVE_SQUARE) { // square - DONE
-      adjusted_arm2_speed = Arm2Speed + get_square_adjustment(arm2_remainder,   arm2_period, arm1_amp);
+      arm2_adjustment = Arm2Speed + square_adjustment(arm2_remainder,   arm2_period, arm1_amp);
     } else if (arm2_wave == WAVE_SAW) { // saw DONE
-      adjusted_arm2_speed = Arm2Speed + get_saw_adjustment(arm2_remainder,      arm2_period, arm1_amp);
+      arm2_adjustment = Arm2Speed + saw_adjustment(arm2_remainder,      arm2_period, arm1_amp);
     } else if (arm2_wave == WAVE_TRIANGLE) { // triangle
-      adjusted_arm2_speed = Arm2Speed + get_triangle_adjustment(arm2_remainder, arm2_period, arm1_amp);
+      arm2_adjustment = Arm2Speed + triangle_adjustment(arm2_remainder, arm2_period, arm1_amp);
     } else if (arm2_wave == WAVE_SINE) { // sine
-      adjusted_arm2_speed = Arm2Speed + get_sine_adjustment(arm2_remainder,     arm2_period, arm1_amp);
+      arm2_adjustment = Arm2Speed + sine_adjustment(arm2_remainder,     arm2_period, arm1_amp);
     }
-    // Arm2Speed = adjusted_arm2_speed
-    Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(adjusted_arm2_speed));
+    // Arm2Speed = arm2_adjustment
+    //Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
   }
 
   /*
@@ -519,28 +545,28 @@ void loop() {
     }
 
     // set the waves
-    selector_a_1 = digitalRead(SELECTOR_A_1);
-    selector_a_2 = digitalRead(SELECTOR_A_2);
-    selector_a_3 = digitalRead(SELECTOR_A_3);
-    selector_a_4 = digitalRead(SELECTOR_A_4);
-    selector_a_5 = digitalRead(SELECTOR_A_5);
-    selector_b_1 = digitalRead(SELECTOR_B_1);
-    selector_b_2 = digitalRead(SELECTOR_B_2);
-    selector_b_3 = digitalRead(SELECTOR_B_3);
-    selector_b_4 = digitalRead(SELECTOR_B_4);
-    selector_b_5 = digitalRead(SELECTOR_B_5);
+    selector_a_1 = digitalRead(SELECTOR_A_1); // WAVE_NONE
+    selector_a_2 = digitalRead(SELECTOR_A_2); // WAVE_SQUARE
+    selector_a_3 = digitalRead(SELECTOR_A_3); // WAVE_SAW
+    selector_a_4 = digitalRead(SELECTOR_A_4); // WAVE_TRIANGLE
+    selector_a_5 = digitalRead(SELECTOR_A_5); // WAVE_SINE
+    selector_b_1 = digitalRead(SELECTOR_B_1); // WAVE_NONE
+    selector_b_2 = digitalRead(SELECTOR_B_2); // WAVE_SQUARE
+    selector_b_3 = digitalRead(SELECTOR_B_3); // WAVE_SAW
+    selector_b_4 = digitalRead(SELECTOR_B_4); // WAVE_TRIANGLE
+    selector_b_5 = digitalRead(SELECTOR_B_5); // WAVE_SINE
 
-    if (selector_a_1 == ON)         arm1_wave = 0;
-    else if (selector_a_2 == ON)    arm1_wave = 1;
-    else if (selector_a_3 == ON)    arm1_wave = 2;
-    else if (selector_a_4 == ON)    arm1_wave = 3;
-    else if (selector_a_5 == ON)    arm1_wave = 4;
+    if (selector_a_1 == ON)         arm1_wave = WAVE_NONE;
+    else if (selector_a_2 == ON)    arm1_wave = WAVE_SQUARE;
+    else if (selector_a_3 == ON)    arm1_wave = WAVE_SAW;
+    else if (selector_a_4 == ON)    arm1_wave = WAVE_TRIANGLE;
+    else if (selector_a_5 == ON)    arm1_wave = WAVE_SINE;
 
-    if (selector_b_1 == ON)         arm2_wave = 0;
-    else if (selector_b_2 == ON)    arm2_wave = 1;
-    else if (selector_b_3 == ON)    arm2_wave = 2;
-    else if (selector_b_4 == ON)    arm2_wave = 3;
-    else if (selector_b_5 == ON)    arm2_wave = 4;
+    if (selector_b_1 == ON)         arm2_wave = WAVE_NONE;
+    else if (selector_b_2 == ON)    arm2_wave = WAVE_SQUARE;
+    else if (selector_b_3 == ON)    arm2_wave = WAVE_SAW;
+    else if (selector_b_4 == ON)    arm2_wave = WAVE_TRIANGLE;
+    else if (selector_b_5 == ON)    arm2_wave = WAVE_SINE;
 
 
     button_a_amp_up      = digitalRead(BUTTON_A_AMP_UP);
