@@ -133,10 +133,10 @@ int new_Arm1Speed, new_Arm2Speed;
 int factors[3];
 
 unsigned int adjusted_platter_speed;
-unsigned int arm1_adjustment;
-unsigned int prev_arm1_adjustment;
-unsigned int arm2_adjustment;
-unsigned int prev_arm2_adjustment;
+int arm1_adjustment;
+int prev_arm1_adjustment;
+int arm2_adjustment;
+int prev_arm2_adjustment;
 unsigned int duration, duration_s;
 unsigned int arm1_remainder;
 unsigned int arm2_remainder;
@@ -170,7 +170,7 @@ const bool ON = LOW,
            OFF = HIGH;
 
 String get_rotation(double voltage, int motor) {
-  // RPM = 1.01 * x + 0.857, R^2 = 0.986 - https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
+  // https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
   double x = log10(voltage);
   if (motor == ARM1) {
     // 235 + -203x + 45x^2 where x is log10(voltage)
@@ -200,14 +200,12 @@ String get_status() {
   String platter_rot = get_rotation(PlatterSpeed, PLATTER);
 
   String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(arm2_rot);
-  if (motorsOn) {
-    str += " " + duration;
-  }
   return str;
 }
 
 String get_wave_status() {
-  return "" + String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " + String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  return String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " +
+         String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
 }
 
 unsigned int get_amp(int amplitude) {
@@ -349,7 +347,6 @@ int square_adjustment(int remainder, int period, int amp) { // remainder in mill
   } else { // LOW
     adjustment = -int(amp / 2);
   }
-  //Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) +",  adj: " + String(adjustment));
   return adjustment;
 }
 
@@ -358,10 +355,9 @@ int saw_adjustment(int remainder, int period, int amp) { // remainder in millis,
        |__/_|
        | /  |
        |/___| */
-  int period_millis = period * 1000;
-  period_slope = amp / period_millis;
-  adjustment = int((-amp / 2) + period_slope * remainder);
-  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
+  period_slope = amp / period;
+  adjustment = int((-amp / 2) + period_slope * remainder / 1000);
+  //Serial.println("slope: " + String(period_slope) + ", adj: " + String(adjustment) + ", period: " + String(period) + ", amp: " + String(amp));
   return adjustment;
 }
 
@@ -370,16 +366,13 @@ int triangle_adjustment(int remainder, int period, int amp) { // remainder in mi
        |__/__\___
        | /    \
        |/______\__ */
-  int period_millis = period * 1000;
-  period_slope = 2 * (amp / period_millis); // half the period so twice the period_slope
-  if (remainder <= period_millis / 2) { // ASCENDING
-    Serial.println("up");
-    adjustment = int((-amp / 2) + (period_slope * remainder));
+  period_slope = 2 * (amp / period); // half the period so twice the period_slope
+  if (remainder <= period * 1000 / 2) { // ASCENDING
+    adjustment = int((-amp / 2) + period_slope * remainder / 1000);
   } else { // DESCENDING
-    Serial.println("down");
-    adjustment = int((amp / 2) - (period_slope * (remainder / 2)));
+    adjustment = int((3 * amp / 2) - period_slope * remainder / 1000);
   }
-  // Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
+  //Serial.println("slope: " + String(period_slope) + ", adj: " + String(adjustment) + ", period: " + String(period) + ", amp: " + String(amp));
   return adjustment;
 }
 
@@ -402,7 +395,7 @@ void loop() {
     arm1_remainder = duration % (arm1_period * 1000);
     arm2_remainder = duration % (arm2_period * 1000);
     //Serial.println("arm1 period: " + String(arm1_period) + ", arm2 period:  " + String(arm2_period));
-    Serial.println("arm1 period: " + String(arm1_period) + " duration: " + String(duration) + " arm1 remainder: " + String(arm1_remainder)  );
+    //Serial.println("Wave: " + String(WAVES[arm1_wave]) + ", arm1 period: " + String(arm1_period) + " duration: " + String(duration) + " arm1 remainder: " + String(arm1_remainder)  );
 
     if      (arm1_wave == WAVE_NONE)      arm1_adjustment = 0;
     else if (arm1_wave == WAVE_SQUARE)    arm1_adjustment = square_adjustment(    arm1_remainder, arm1_period, arm1_amp);
@@ -412,13 +405,13 @@ void loop() {
 
     if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
       new_Arm1Speed = Arm1Speed + arm1_adjustment;
+      Serial.println("new arm1 speed: " + String(new_Arm1Speed));
       if (new_Arm1Speed > MAX_SPEED)      analogWrite(ARM1, MAX_SPEED);
       else if (new_Arm1Speed < MIN_SPEED) analogWrite(ARM1, 0);
       else                                analogWrite(ARM1, new_Arm1Speed);
       prev_arm1_adjustment = arm1_adjustment;
+      Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
     }
-
-    Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
 
     if      (arm2_wave == WAVE_NONE)      arm2_adjustment = 0;
     else if (arm2_wave == WAVE_SQUARE)    arm2_adjustment = square_adjustment(    arm2_remainder, arm2_period, arm2_amp);
@@ -434,7 +427,7 @@ void loop() {
       prev_arm2_adjustment = arm2_adjustment;
     }
 
-    Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
+    //Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
   }
 
   /*
@@ -442,15 +435,11 @@ void loop() {
   */
 
   if (start_button == ON && motorsOn == false) { // start the motors
-    /*
-        Necessary? The starting voltages might be incorrect depending on waves function choices
-        and the wave function now writes to the motor controls
-
-      analogWrite(PLATTER, PlatterSpeed);
-      analogWrite(ARM1, Arm1Speed);
-      analogWrite(ARM2, Arm2Speed);
-      Serial.println("motors started");
-    */
+    // Necessary? The starting voltages might be incorrect depending on waves function choices
+    analogWrite(PLATTER, PlatterSpeed);
+    analogWrite(ARM1, Arm1Speed);
+    analogWrite(ARM2, Arm2Speed);
+    Serial.println("motors started");
 
     motorsOn = true;
     lcd_display(get_status(), get_wave_status());
