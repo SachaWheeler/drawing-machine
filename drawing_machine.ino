@@ -3,6 +3,8 @@
 #include <SPI.h>           // SD card
 #include <SD.h>            // SD card
 
+#define TWO_PI 6.283185307179586476925286766559
+
 // LCD variables - https://www.arduino.cc/en/Reference/LiquidCrystalConstructor
 const int rs = 12, en = 11, d4 = 9, d5 = 8, d6 = 7, d7 = 6; // 2, 3, 4, 5 become 6, 7, 8, 9
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -147,19 +149,21 @@ int adjustment;
 const int MAX_SPEED = 255;
 const int MIN_SPEED = 55;
 
-const int MIN_AMP    = 5;
-const int MAX_AMP    = 100;
-const int MIN_PERIOD = 5;
-const int MAX_PERIOD = 300;
+const int MIN_AMP        = 5;
+const int MAX_AMP        = 100;
+const int MIN_PERIOD     = 5;
+const int MAX_PERIOD     = 300;
+const int DEFAULT_AMP    = 50;
+const int DEFAULT_PERIOD = 20;
 
 int start_button;
 
-int button_1_state = 0, button_2_state = 0, button_3_state = 0,
-    button_4_state = 0, button_5_state = 0, button_6_state = 0,
-    button_7_state = 0, button_8_state = 0, button_9_state = 0;
+unsigned int button_1_state = 0, button_2_state = 0, button_3_state = 0,
+             button_4_state = 0, button_5_state = 0, button_6_state = 0,
+             button_7_state = 0, button_8_state = 0, button_9_state = 0;
 
-unsigned int arm1_wave = 0, arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
-             arm2_wave = 0, arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
+unsigned int arm1_wave = 0, arm1_period = DEFAULT_PERIOD, arm1_amp = DEFAULT_AMP, // these defaults will not be required when/if SD card saving is enabled
+             arm2_wave = 0, arm2_period = DEFAULT_PERIOD, arm2_amp = DEFAULT_AMP;
 unsigned int prev_arm1_wave = arm1_wave,
              prev_arm2_wave = arm2_wave;
 
@@ -377,10 +381,12 @@ int triangle_adjustment(int remainder, int period, int amp) { // remainder in mi
 }
 
 int sine_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+  // 1 radian = 180°/ π = 57.30°.
   int period_millis = period * 1000;
-  float angular_progress = 360 * (remainder / period_millis);
-  adjustment = int((-amp / 2) + sin(angular_progress) * amp);
-  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ",  adj: " + String(adjustment));
+  float angular_progress = TWO_PI * (remainder / period_millis);
+  Serial.println("millis: " + String(period_millis) + ",  (remainder / period_millis): " + String(360 * remainder / period_millis) );
+  adjustment = int(amp * sin(angular_progress));
+  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ", angle: " + String(angular_progress) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
