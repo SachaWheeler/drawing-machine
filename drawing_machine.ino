@@ -174,6 +174,7 @@ const bool ON = LOW,
            OFF = HIGH;
 
 String get_rotation(double voltage, int motor) {
+  return String(int(voltage)); // while re-calibrating motor gearing
   // https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
   double x = log10(voltage);
   if (motor == ARM1) {
@@ -187,10 +188,10 @@ String get_rotation(double voltage, int motor) {
     factors[1] = -203;
     factors[2] = 45;
   } else if (motor == PLATTER) {
-    // 2173 + -1766x + 384x^2 where x is log10(voltage)
-    factors[0] = 2173;
-    factors[1] = -1766;
-    factors[2] = 384;
+    // 11599 + -9394x + 2057x^2 where x is log10(voltage)
+    factors[0] = 11599;
+    factors[1] = -9394;
+    factors[2] = 2057;
   }
 
   double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
@@ -204,12 +205,19 @@ String get_status() {
   String platter_rot = get_rotation(PlatterSpeed, PLATTER);
 
   String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(arm2_rot);
+  for (int i = 0; i < (16 - str.length()); i++) {
+    str += ' ';
+  }
   return str;
 }
 
 String get_wave_status() {
-  return String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " +
-         String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  String str = String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " +
+               String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  for (int i = 0; i < (16 - str.length()); i++) {
+    str += ' ';
+  }
+  return str;
 }
 
 unsigned int get_amp(int amplitude) {
@@ -291,7 +299,7 @@ void setup() {
   pinMode(ARM2, OUTPUT);
   pinMode(PLATTER, OUTPUT);
 
-  Serial.begin(9600);
+  Serial.begin(230400);
   while (!Serial); // wait until Serial is available
 
   /*
@@ -411,7 +419,7 @@ void loop() {
 
     if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
       new_Arm1Speed = Arm1Speed + arm1_adjustment;
-      Serial.println("new arm1 speed: " + String(new_Arm1Speed));
+      Serial.println("new arm1 speed: " + String(new_Arm1Speed)); // remove this after calibrtation
       if (new_Arm1Speed > MAX_SPEED)      analogWrite(ARM1, MAX_SPEED);
       else if (new_Arm1Speed < MIN_SPEED) analogWrite(ARM1, 0);
       else                                analogWrite(ARM1, new_Arm1Speed);
