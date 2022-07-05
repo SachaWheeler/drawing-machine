@@ -98,8 +98,8 @@ const int MIN_AMP        = 50;
 const int MAX_AMP        = 200;
 const int MIN_PERIOD     = 5;
 const int MAX_PERIOD     = 300;
-const int DEFAULT_AMP    = 50;
-const int DEFAULT_PERIOD = 20;
+const int DEFAULT_AMP    = 100;
+const int DEFAULT_PERIOD = 60;
 
 int start_button;
 
@@ -123,7 +123,7 @@ String get_status() {
   // String arm2_rot = get_rotation(Arm2Speed, ARM2);
   String platter_rot = String(int(PlatterSpeed));
 
-  String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(int((currentMillis - startMillis) / 1000)) + "s";
+  String str = String(arm1_rot) + " " + String(platter_rot) + ", " + String(int((currentMillis - startMillis) / 1000)) + "s";
   for (int i = 0; i < (16 - str.length()); i++) {
     str += ' ';
   }
@@ -131,7 +131,7 @@ String get_status() {
 }
 
 String get_wave_status() {
-  String str = String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period); + " " + String(duration);
+  String str = String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + ", " + String(new_Arm1Speed);
   //String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
   for (int i = 0; i < (16 - str.length()); i++) {
     str += ' ';
@@ -288,17 +288,17 @@ void loop() {
 
     if (arm1_adjustment != prev_arm1_adjustment) { // only change sopeeds when we need to
       new_Arm1Speed = Arm1Speed + arm1_adjustment;
-      Serial.println("new arm1 speed: " + String(new_Arm1Speed)); // remove this after calibrtation
+      //Serial.println("new arm1 speed: " + String(new_Arm1Speed)); // remove this after calibrtation
       if (new_Arm1Speed > MAX_SPEED)      analogWrite(ARM1, MAX_SPEED);
       else if (new_Arm1Speed < MIN_SPEED) analogWrite(ARM1, 0);
       else                                analogWrite(ARM1, new_Arm1Speed);
       prev_arm1_adjustment = arm1_adjustment;
-      Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
+      //Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
     }
 
     // print the time taken
     if (int(prevMillis / 1000) != int(currentMillis / 1000)) {
-      Serial.println("prev: " + String(int(prevMillis / 1000)) + " current: " + String(int(currentMillis / 1000)));
+      //Serial.println("prev: " + String(int(prevMillis / 1000)) + " current: " + String(int(currentMillis / 1000)));
       lcd_display(get_status(), get_wave_status());
       prevMillis = currentMillis;
     }
