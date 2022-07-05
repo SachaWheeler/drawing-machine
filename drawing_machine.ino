@@ -30,61 +30,6 @@ const int WAVE_SAW      = 2;
 const int WAVE_TRIANGLE = 3;
 const int WAVE_SINE     = 4;
 
-const byte NONE[8] = {
-  0b00000,
-  0b00000,
-  0b00000,
-  0b11111,
-  0b00000,
-  0b00000,
-  0b00000,
-  0b00000
-};
-
-const byte SQUARE[8] = {
-  0b00000,
-  0b11111,
-  0b10001,
-  0b10001,
-  0b10001,
-  0b11111,
-  0b00000,
-  0b00000
-};
-
-const byte SAW[8] = {
-  0b00000,
-  0b10000,
-  0b11000,
-  0b10100,
-  0b10010,
-  0b10001,
-  0b00000,
-  0b00000
-};
-
-const byte TRIANGLE[8] = {
-  0b00000,
-  0b00000,
-  0b00100,
-  0b01010,
-  0b10001,
-  0b00000,
-  0b00000,
-  0b00000
-};
-
-const byte SINE[8] = {
-  0b00000,
-  0b00000,
-  0b00011,
-  0b00100,
-  0b01000,
-  0b11000,
-  0b00000,
-  0b00000
-};
-
 // control panel 1
 const int  START_BUTTON = 34;
 const int  BUTTON_1 = 36;     // row 1 col 1
@@ -127,8 +72,8 @@ long selectorMillis = 0;
 const int  BUTTON_PAUSE = 50; // milliseconds to wait while button being pressed
 
 // variables
-int PlatterSpeed = 60; // initial variables, will change
-int Arm1Speed    = 150;
+int PlatterSpeed = 255; // initial variables, will change
+int Arm1Speed    = 255;
 int Arm2Speed    = 150;
 int new_Arm1Speed, new_Arm2Speed;
 
@@ -149,8 +94,8 @@ int adjustment;
 const int MAX_SPEED = 255;
 const int MIN_SPEED = 55;
 
-const int MIN_AMP        = 5;
-const int MAX_AMP        = 100;
+const int MIN_AMP        = 50;
+const int MAX_AMP        = 200;
 const int MIN_PERIOD     = 5;
 const int MAX_PERIOD     = 300;
 const int DEFAULT_AMP    = 50;
@@ -167,44 +112,18 @@ unsigned int arm1_wave = 0, arm1_period = DEFAULT_PERIOD, arm1_amp = DEFAULT_AMP
 unsigned int prev_arm1_wave = arm1_wave,
              prev_arm2_wave = arm2_wave;
 
-unsigned long startMillis, stopMillis, currentMillis;
+unsigned long startMillis, stopMillis, currentMillis, prevMillis;
 const unsigned long PERIOD = 100;  // milliseconds
 
 const bool ON = LOW,
            OFF = HIGH;
 
-String get_rotation(double voltage, int motor) {
-  return String(int(voltage)); // while re-calibrating motor gearing
-  // https://docs.google.com/spreadsheets/d/1f9QExcumMRH8idaQd5ZxFR9PZowoW2o2FPOhNIjPI1c/edit#gid=1207148320
-  double x = log10(voltage);
-  if (motor == ARM1) {
-    // 235 + -203x + 45x^2 where x is log10(voltage)
-    factors[0] = 235;
-    factors[1] = -203;
-    factors[2] = 45;
-  } else if (motor == ARM2) {
-    // 235 + -203x + 45x^2 where x is log10(voltage)
-    factors[0] = 235;
-    factors[1] = -203;
-    factors[2] = 45;
-  } else if (motor == PLATTER) {
-    // 11599 + -9394x + 2057x^2 where x is log10(voltage)
-    factors[0] = 11599;
-    factors[1] = -9394;
-    factors[2] = 2057;
-  }
-
-  double rotation = factors[0] + (factors[1] * x) + (factors[2] * sq(x));
-  int precision = 2 - int(log10(rotation));
-  return String(rotation, precision);
-}
-
 String get_status() {
-  String arm1_rot = get_rotation(Arm1Speed, ARM1);
-  String arm2_rot = get_rotation(Arm2Speed, ARM2);
-  String platter_rot = get_rotation(PlatterSpeed, PLATTER);
+  String arm1_rot = String(int(Arm1Speed));
+  // String arm2_rot = get_rotation(Arm2Speed, ARM2);
+  String platter_rot = String(int(PlatterSpeed));
 
-  String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(arm2_rot);
+  String str = String(arm1_rot) + " " + String(platter_rot) + " " + String(int((currentMillis - startMillis) / 1000)) + "s";
   for (int i = 0; i < (16 - str.length()); i++) {
     str += ' ';
   }
@@ -212,8 +131,8 @@ String get_status() {
 }
 
 String get_wave_status() {
-  String str = String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period) + " " +
-               String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
+  String str = String(WAVES[arm1_wave]) + "," + String(arm1_amp) + "," + String(arm1_period); + " " + String(duration);
+  //String(WAVES[arm2_wave]) + "," + String(arm2_amp) + "," + String(arm2_period);
   for (int i = 0; i < (16 - str.length()); i++) {
     str += ' ';
   }
@@ -239,18 +158,9 @@ void lcd_display(String line_1, String line_2) {
   lcd.print(line_2);
 }
 
-/*
-  String get_data_format() {
-  return String(PlatterSpeed) + "," + String(Arm1Speed) + "," + String(arm1_period) + "," + String(arm1_amp) + "," + String(Arm2Speed) + "," + String(arm2_period) + "," + String(arm2_amp);
-  }*/
-
 void setup() {
   // LCD
   lcd.begin(16, 2);
-  //lcd.createChar(0, SQUARE);
-
-  // SD card
-  // SD.begin(SD_CS);
 
   // buttons
   pinMode(START_BUTTON,         INPUT_PULLUP);
@@ -302,48 +212,7 @@ void setup() {
   Serial.begin(230400);
   while (!Serial); // wait until Serial is available
 
-  /*
-
-    // is there data to read? // PlatterSpeed, Arm1Speed, arm1_period, arm1_amp, Arm2Speed, arm2_period, arm2_amp,
-    //if (SD.exists(DATA_FILE)) {
-    //    Serial.write("we have a data file");
-    dataFile = SD.open(DATA_FILE);
-    Serial.write(dtaFile);
-    if (dataFile) {
-    while (dataFile.available()) {
-      saved_data = dataFile.read();
-    }
-    Serial.write(saved_data);
-    dataFile.close();
-    }
-    //  }else{
-    //Serial.write("no data file");
-    //dataFile = SD.open(DATA_FILE, FILE_WRITE);
-    //Serial.println(get_data_format());
-    //dataFile.println(get_data_format());
-    //dataFile.close();
-    //Serial.println("done writing.");
-    //}
-
-    write using: dataFile.write(data);
-
-      dataFile.print(data);
-      dataFile.println(data); // followed by a new line
-
-      dataFile.read();
-
-      if datafile exists:
-        read data from file
-        parse data
-        set speeds, period and aplitudes from data
-
-        int PlatterSpeed = 60; // initial variables, will change
-        int Arm1Speed    = 150;
-        int Arm2Speed    = 150;
-
-        unsigned int arm1_period = MIN_PERIOD, arm1_amp = MIN_AMP,
-              arm2_period = MIN_PERIOD, arm2_amp = MIN_AMP;
-  */
+  prevMillis = 0;
 
   lcd_display(get_status(), get_wave_status());
 }
@@ -407,7 +276,7 @@ void loop() {
     currentMillis = millis();
     duration = (currentMillis - startMillis);
     arm1_remainder = duration % (arm1_period * 1000);
-    arm2_remainder = duration % (arm2_period * 1000);
+    //arm2_remainder = duration % (arm2_period * 1000);
     //Serial.println("arm1 period: " + String(arm1_period) + ", arm2 period:  " + String(arm2_period));
     //Serial.println("Wave: " + String(WAVES[arm1_wave]) + ", arm1 period: " + String(arm1_period) + " duration: " + String(duration) + " arm1 remainder: " + String(arm1_remainder)  );
 
@@ -427,19 +296,28 @@ void loop() {
       Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
     }
 
-    if      (arm2_wave == WAVE_NONE)      arm2_adjustment = 0;
-    else if (arm2_wave == WAVE_SQUARE)    arm2_adjustment = square_adjustment(    arm2_remainder, arm2_period, arm2_amp);
-    else if (arm2_wave == WAVE_SAW)       arm2_adjustment = saw_adjustment(       arm2_remainder, arm2_period, arm2_amp);
-    else if (arm2_wave == WAVE_TRIANGLE)  arm2_adjustment = triangle_adjustment(  arm2_remainder, arm2_period, arm2_amp);
-    else if (arm2_wave == WAVE_SINE)      arm2_adjustment = sine_adjustment (     arm2_remainder, arm2_period, arm2_amp);
-
-    if (arm2_adjustment != prev_arm2_adjustment) { // only change sopeeds when we need to
-      new_Arm2Speed = Arm2Speed + arm2_adjustment;
-      if (new_Arm2Speed > MAX_SPEED)      analogWrite(ARM2, MAX_SPEED);
-      else if (new_Arm2Speed < MIN_SPEED) analogWrite(ARM2, 0);
-      else                                analogWrite(ARM2, new_Arm2Speed);
-      prev_arm2_adjustment = arm2_adjustment;
+    // print the time taken
+    if (int(prevMillis / 1000) != int(currentMillis / 1000)) {
+      Serial.println("prev: " + String(int(prevMillis / 1000)) + " current: " + String(int(currentMillis / 1000)));
+      lcd_display(get_status(), get_wave_status());
+      prevMillis = currentMillis;
     }
+
+    /*
+        if      (arm2_wave == WAVE_NONE)      arm2_adjustment = 0;
+        else if (arm2_wave == WAVE_SQUARE)    arm2_adjustment = square_adjustment(    arm2_remainder, arm2_period, arm2_amp);
+        else if (arm2_wave == WAVE_SAW)       arm2_adjustment = saw_adjustment(       arm2_remainder, arm2_period, arm2_amp);
+        else if (arm2_wave == WAVE_TRIANGLE)  arm2_adjustment = triangle_adjustment(  arm2_remainder, arm2_period, arm2_amp);
+        else if (arm2_wave == WAVE_SINE)      arm2_adjustment = sine_adjustment (     arm2_remainder, arm2_period, arm2_amp);
+
+        if (arm2_adjustment != prev_arm2_adjustment) { // only change sopeeds when we need to
+          new_Arm2Speed = Arm2Speed + arm2_adjustment;
+          if (new_Arm2Speed > MAX_SPEED)      analogWrite(ARM2, MAX_SPEED);
+          else if (new_Arm2Speed < MIN_SPEED) analogWrite(ARM2, 0);
+          else                                analogWrite(ARM2, new_Arm2Speed);
+          prev_arm2_adjustment = arm2_adjustment;
+        }
+    */
 
     //Serial.println("Arm2Speed: " + String(Arm2Speed) + " Adj arm speed: " + String(arm2_adjustment));
   }
@@ -452,7 +330,7 @@ void loop() {
     // Necessary? The starting voltages might be incorrect depending on waves function choices
     analogWrite(PLATTER, PlatterSpeed);
     analogWrite(ARM1, Arm1Speed);
-    analogWrite(ARM2, Arm2Speed);
+    //analogWrite(ARM2, Arm2Speed);
     Serial.println("motors started");
 
     motorsOn = true;
@@ -468,7 +346,7 @@ void loop() {
     if (motorsOn == true) { // stop the motors
       analogWrite(PLATTER, 0);
       analogWrite(ARM1, 0);
-      analogWrite(ARM2, 0);
+      //analogWrite(ARM2, 0);
       Serial.println("motors stopped");
 
       motorsOn = false;
@@ -503,13 +381,15 @@ void loop() {
       analogWrite(ARM1, 0);
     }
 
-    if (button_9_state == ON) { // Arm2
-      int advance_speed = int(Arm2Speed / 2);
-      if (advance_speed < MIN_SPEED) advance_speed = MIN_SPEED;
-      analogWrite(ARM2, advance_speed);
-      while (digitalRead(BUTTON_9) == ON);
-      analogWrite(ARM2, 0);
-    }
+    /*
+        if (button_9_state == ON) { // Arm2
+          int advance_speed = int(Arm2Speed / 2);
+          if (advance_speed < MIN_SPEED) advance_speed = MIN_SPEED;
+          analogWrite(ARM2, advance_speed);
+          while (digitalRead(BUTTON_9) == ON);
+          analogWrite(ARM2, 0);
+        }
+    */
 
     // set the waves
     selector_a_1 = digitalRead(SELECTOR_A_1); // WAVE_NONE
