@@ -90,9 +90,9 @@ const int MIN_SPEED = 55;
 const int MIN_AMP        = 50;
 const int MAX_AMP        = 200;
 const int MIN_PERIOD     = 5;
-const int MAX_PERIOD     = 300;
+const int MAX_PERIOD     = 1200;
 const int DEFAULT_AMP    = 100;
-const int DEFAULT_PERIOD = 60;
+const int DEFAULT_PERIOD = 180;
 
 int start_button;
 
@@ -110,13 +110,6 @@ const unsigned long PERIOD = 100;  // milliseconds
 
 const bool ON = LOW,
            OFF = HIGH;
-
-const bool PRINT = true;
-void print_to_serial(String text) {
-  if (PRINT) {
-    Serial.println(text);
-  }
-}
 
 String get_status() {
   String arm1_rot = String(int(Arm1Speed));
@@ -217,13 +210,12 @@ void setup() {
   lcd_display(get_status(), get_wave_status());
 }
 
-int square_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+int square_adjustment(float remainder, float period, float amp) { // remainder in millis, period in secs, amp is int
   /*  |_____     |   first half HIGH, second half LOW
       |    |     |
       |    |_____|
       | _____ ___|*/
-  int period_millis = period * 1000;
-  if (remainder <= period_millis / 2) { // HIGH
+  if (remainder <= period / 2) { // HIGH
     adjustment = int(amp / 2);
   } else { // LOW
     adjustment = -int(amp / 2);
@@ -231,55 +223,51 @@ int square_adjustment(int remainder, int period, int amp) { // remainder in mill
   return adjustment;
 }
 
-int saw_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+int saw_adjustment(float remainder, float period, float amp) { // remainder in millis, period in secs, amp is int
   /*   |   /|   ramps up, then snaps back
        |__/_|
        | /  |
        |/___| */
-  period_slope = float(amp) / float(period);
-  adjustment = int((period_slope * float(remainder) / 1000) - (float(amp) / 2));
-  print_to_serial("remainder: " + String(remainder) + ", slope: " + String(period_slope) + ", adj: " + String(adjustment));
-  //print_to_serial("remainder: " + String(remainder) + ", adj: " + String(adjustment));
+  float slope = amp / period;
+  adjustment = (slope * remainder) - (amp / 2);
+
   return adjustment;
 }
 
-int triangle_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+int triangle_adjustment(float remainder, float period, float amp) { // remainder in millis, period in secs, amp is int
   /*   |   /\        ramps up for half the period, then ramps back down
        |__/__\___
        | /    \
        |/______\__ */
-  period_slope = 2 * (amp / period); // half the period so twice the period_slope
-  int period_millis = period * 1000;
-  if (remainder <= period_millis / 2) { // ASCENDING
-    adjustment = int((period_slope * remainder / 1000) - (amp / 2));
+  float slope = 2 * amp / period; // half the period so twice the period_slope
+  if (remainder <= period / 2) { // ASCENDING
+    adjustment = int((slope * remainder) - (amp / 2));
   } else { // DESCENDING
-    //adjustment = int((3 * amp / 2) - period_slope * remainder / 1000);
-    adjustment = int((amp / 2) - (period_slope * remainder / 1000));
+    adjustment = int((amp / 2) - (slope * remainder));
   }
-  //print_to_serial("slope: " + String(period_slope) + ", adj: " + String(adjustment) + ", period: " + String(period) + ", amp: " + String(amp));
+  //Serial.println("slope: " + String(period_slope) + ", adj: " + String(adjustment) + ", period: " + String(period) + ", amp: " + String(amp));
   return adjustment;
 }
 
-int sine_adjustment(int remainder, int period, int amp) { // remainder in millis, period in secs, amp is int
+int sine_adjustment(float remainder, float period, float amp) { // remainder in millis, period in secs, amp is int
   // 1 radian = 180°/ π = 57.30°.
-  int period_millis = period * 1000;
-  float angular_progress = TWO_PI * (remainder / period_millis);
-  print_to_serial("millis: " + String(period_millis) + ",  (remainder / period_millis): " + String(360 * remainder / period_millis) );
+  float angular_progress = TWO_PI * (remainder / period);
+  Serial.println("period: " + String(period) + ",  (remainder / period): " + String(360 * remainder / period) );
   adjustment = int(amp * sin(angular_progress));
-  print_to_serial("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ", angle: " + String(angular_progress) + ",  adj: " + String(adjustment));
+  Serial.println("rem: " + String(remainder) + ", period: " + String(period) + ", amp: " + String(amp) + ", angle: " + String(angular_progress) + ",  adj: " + String(adjustment));
   return adjustment;
 }
 
 int get_adjustment(int wave, int period, int amp) {
-  int duration = (currentMillis - startMillis);
-  int remainder = duration % (period * 1000);
-  print_to_serial("start: " + String(startMillis) + ", cur: " + String(currentMillis) + ", duration: " + String(duration) + ", rem: " + String(remainder));
+  int duration = (currentMillis - startMillis) / 1000;
+  float remainder = duration % period;
+  // Serial.println("start: " + String(startMillis) + ", cur: " + String(currentMillis) + ", duration: " + String(duration) + ", rem: " + String(remainder));
   if      (wave == WAVE_NONE)       adjustment = 0;
   else if (wave == WAVE_SQUARE)     adjustment = square_adjustment(    remainder, period, amp);
   else if (wave == WAVE_SAW)        adjustment = saw_adjustment(       remainder, period, amp);
   else if (wave == WAVE_TRIANGLE)   adjustment = triangle_adjustment(  remainder, period, amp);
   else if (wave == WAVE_SINE)       adjustment = sine_adjustment (     remainder, period, amp);
-  //print_to_serial("duration: " + String(duration) + ",  remainder: " + String(remainder)  + ", adj: " + String(adjustment));
+  //Serial.println("duration: " + String(duration) + ",  remainder: " + String(remainder)  + ", adj: " + String(adjustment));
   return adjustment;
 }
 
@@ -301,7 +289,7 @@ void loop() {
       else if (new_Arm1Speed < MIN_SPEED) analogWrite(ARM1, 0);
       else                                analogWrite(ARM1, new_Arm1Speed);
       prev_arm1_adjustment = arm1_adjustment;
-      //print_to_serial("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
+      //Serial.println("Arm1Speed: " + String(Arm1Speed) + " Adj arm speed: " + String(arm1_adjustment));
     }
 
     // print the time taken every second
@@ -320,7 +308,7 @@ void loop() {
     analogWrite(PLATTER, PlatterSpeed);
     analogWrite(ARM1, Arm1Speed);
     //analogWrite(ARM2, Arm2Speed);
-    print_to_serial("motors started");
+    Serial.println("motors started");
 
     motorsOn = true;
     lcd_display(get_status(), get_wave_status());
@@ -336,7 +324,7 @@ void loop() {
       analogWrite(PLATTER, 0);
       analogWrite(ARM1, 0);
       //analogWrite(ARM2, 0);
-      print_to_serial("motors stopped");
+      Serial.println("motors stopped");
 
       motorsOn = false;
     }
