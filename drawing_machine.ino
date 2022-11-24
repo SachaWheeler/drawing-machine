@@ -90,7 +90,7 @@ const int MIN_SPEED = 55;
 const int MIN_AMP        = 50;
 const int MAX_AMP        = 200;
 const int MIN_PERIOD     = 5;
-const int MAX_PERIOD     = 1200;
+const int MAX_PERIOD     = 3000;
 const int DEFAULT_AMP    = 100;
 const int DEFAULT_PERIOD = 180;
 
